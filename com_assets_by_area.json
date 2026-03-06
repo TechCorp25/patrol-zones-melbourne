@@ -1,0 +1,3739 @@
+{
+  "metadata": {
+    "jurisdiction": "City of Melbourne (CBD)",
+    "generated": "2026-03-02T07:44:56.587Z"
+  },
+  "areas": {
+    "PRINCESS": {
+      "assets": [
+        {
+          "name": "Amphlett Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Bell Place",
+          "off": "MacKenzie Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Belman Place",
+          "off": "Russell Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Bennetts Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Brien Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Casselden Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Cl1266",
+          "off": "La Trobe Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1403",
+          "off": "Trades Hall Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cohen Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Corrs Lane",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Coverlid Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Croft Alley",
+          "off": "Paynes Place",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Crossley Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Davisons Place",
+          "off": "Little Lonsdale Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elliott Place",
+          "off": "Victoria Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Evans Lane",
+          "off": "Exploration Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Evans Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Victoria Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exploration Lane",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Golden Fleece Alley",
+          "off": "Coverlid Place",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Gordon Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Gorman Alley",
+          "type": "alley",
+          "str_type": "Private"
+        },
+        {
+          "name": "Grange Place",
+          "off": "MacKenzie Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Grant Lane",
+          "off": "Exhibition Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Harwood Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Harwood Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Hayward Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Hayward Lane",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Exhibition Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & Exhibition Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & MacKenzie Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Victoria Street & Drummond Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Victoria Street & Exhibition Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Victoria Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Victoria Street & Lygon Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Jones Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "Victoria Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lacey Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Lees Place",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Exhibition Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Lees Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Little Bourke Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Liverpool Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "MacKenzie Street",
+          "between": {
+            "from": "Victoria Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Madame Brussels Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Market Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Mornane Place",
+          "off": "Exhibition Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Paynes Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pender Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Ph8014",
+          "off": "Lonsdale Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "PH8026",
+          "off": "Market Lane",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "PH8036",
+          "between": {
+            "from": "Cohen Place",
+            "to": "Smythe Lane"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5082",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5121",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5122",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5155",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5184",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5226",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5227",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5237",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5242",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Punch Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Rathdowne Street",
+          "between": {
+            "from": "Victoria Street",
+            "to": "Queensberry Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Rental Terrace",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "MacKenzie Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Smythe Lane",
+          "off": "Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "Victoria Parade"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Trades Hall Place",
+          "off": "Victoria Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Turnbull Alley",
+          "off": "Spring Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Victoria Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Rathdowne Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Victoria Street",
+          "between": {
+            "from": "Drummond Street",
+            "to": "Lygon Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Victoria Street",
+          "between": {
+            "from": "Rathdowne Street",
+            "to": "Drummond Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        }
+      ]
+    },
+    "LIBRARY": {
+      "assets": [
+        {
+          "name": "Albert Coates Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Artemis Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Caledonian Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Celestial Avenue",
+          "off": "Little Bourke Street",
+          "type": "avenue",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Celestial Avenue",
+          "type": "avenue",
+          "str_type": "Private"
+        },
+        {
+          "name": "Constance Stone Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Drewery Alley",
+          "off": "Drewery Lane",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Drewery Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Drewery Place",
+          "off": "Drewery Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Driver Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Globe Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Heffernan Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & Elizabeth Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & Russell Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Jane Bell Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Knox Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Knox Place",
+          "between": {
+            "from": "Knox Lane",
+            "to": "Swanston Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "McIntyre Alley",
+          "off": "Knox Lane",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5250",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "PL5370",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Red Cape Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Shilling Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Sniders Lane",
+          "off": "Drewery Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Stevenson Lane",
+          "off": "Tattersalls Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Tattersalls Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "The Strand",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Unnamed Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Waratah Place",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "CHINA TOWN": {
+      "assets": [
+        {
+          "name": "206 Bourke Street",
+          "type": "street",
+          "str_type": "Private"
+        },
+        {
+          "name": "Albion Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Angel Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Athenaeum Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Balcombe Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Baptist Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Block Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Block Court",
+          "type": "court",
+          "str_type": "Private"
+        },
+        {
+          "name": "Block Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Bullens Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Bullens Lane",
+          "between": {
+            "from": "Russell Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Capitol Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Carson Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "CL1177",
+          "off": "Block Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Dame Edna Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Dean Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Donaldson Lane",
+          "off": "Russell Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "GPO Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Howey Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Howey Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Hughs Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Bourke Street & Swanston Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "La Trobe Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Louden Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Masons Lane",
+          "off": "Little Collins Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Midcity Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Midtown Plaza",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5249",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Portland Lane",
+          "off": "Russell Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Portland Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Presgrave Place",
+          "off": "Howey Place",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Rainbow Alley",
+          "off": "Little Collins Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Royal Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Royal Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Russell Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Star Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Staughton Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Staughton Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Sugden Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Target Centre",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "The Causeway",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "The Hub Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "The Walk Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Tivoli Centre",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Turners Alley",
+          "off": "Swanston Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Union Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "FLAGSTAFF": {
+      "assets": [
+        {
+          "name": "Alsop Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Altson Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Brights Place",
+          "off": "Little Lonsdale Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Brown Alley",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Chisholm Place",
+          "off": "Little Lonsdale Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1126",
+          "off": "King Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1320",
+          "off": "Warner Lane",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1603",
+          "off": "La Trobe Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1683",
+          "off": "Cl1603",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cleve Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Crombie Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Eagle Alley",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Gough Alley",
+          "off": "King Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Guests Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Healeys Lane",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: King Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: King Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Little Lonsdale Street & William Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & King Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & Spencer Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Spencer Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Spencer Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: William Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "King Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "King Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "King Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Manton Lane",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Merriman Lane",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Merritts Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Nicholson Place",
+          "off": "Little Lonsdale Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Park Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pender Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "PT8011",
+          "between": {
+            "from": "King Street",
+            "to": "Uniacke Court"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Rose Lane",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Uniacke Court",
+          "off": "Little Bourke Street",
+          "type": "court",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Warner Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Watertank Way",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Wicklow Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "William Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "William Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        }
+      ]
+    },
+    "SPENCER": {
+      "assets": [
+        {
+          "name": "Bourke Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Cosgrave Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Gallaghers Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Goldsbrough Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Gresham Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: King Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: King Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: King Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: William Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "King Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "King Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Langs Lane",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "William Street",
+            "to": "King Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Ph8012",
+          "off": "Gallaghers Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Ramsay Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "THE MAC": {
+      "assets": [
+        {
+          "name": "A'Beckett Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Cardigan Terrace",
+          "between": {
+            "from": "Victoria Street",
+            "to": "Swanston Street"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Little La Trobe Street",
+            "to": "A'Beckett Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "A'Beckett Street",
+            "to": "Franklin Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Franklin Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & A'Beckett Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Franklin Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Little La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Therry Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Franklin Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Victoria Street & Bouverie Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Victoria Street & Swanston Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "PH8039",
+          "off": "Franklin Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5220",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5221",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5290",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Stewart Street",
+          "between": {
+            "from": "Franklin Street",
+            "to": "A'Beckett Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "A'Beckett Street",
+            "to": "Franklin Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Franklin Street",
+            "to": "Victoria Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Therry Street",
+          "between": {
+            "from": "Victoria Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Victoria Street",
+          "between": {
+            "from": "Cardigan Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Victoria Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Bouverie Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        }
+      ]
+    },
+    "HYATT": {
+      "assets": [
+        {
+          "name": "ACDC Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Alfred Place",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Beaney Lane",
+          "off": "Russell Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Benson Walk",
+          "type": "walk",
+          "str_type": "Private"
+        },
+        {
+          "name": "Chester Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Coromandel Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Duckboard Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Exhibition Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Lane",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "George Parade",
+          "between": {
+            "from": "Collins Street",
+            "to": "Flinders Lane"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Higson Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Russell Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Malthouse Lane",
+          "between": {
+            "from": "Exhibition Street",
+            "to": "Flinders Lane"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Melbourne Place",
+          "off": "Russell Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Oliver Lane",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pink Alley",
+          "off": "Little Collins Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5126",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Southern Cross Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Strachan Lane",
+          "off": "Exhibition Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "SUPREME": {
+      "assets": [
+        {
+          "name": "A'Beckett Street",
+          "between": {
+            "from": "Wills Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Cl0034",
+          "off": "Hardware Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1183",
+          "off": "Queen Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1611",
+          "off": "A'Beckett Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1757",
+          "off": "Hardware Lane",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Crown Place",
+          "off": "Lonsdale Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Electric Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Finlay Alley",
+          "between": {
+            "from": "Queen Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Flanigan Lane",
+          "between": {
+            "from": "Sutherland Street",
+            "to": "Guildford Lane"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Frederick Way",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Goldie Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Goldie Place",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Guildford Lane",
+          "between": {
+            "from": "Queen Street",
+            "to": "Sutherland Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Hardware Lane",
+          "between": {
+            "from": "Little Bourke Street",
+            "to": "Lonsdale Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Hardware Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Heape Court",
+          "off": "Little Lonsdale Street",
+          "type": "court",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Lonsdale Street & Queen Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & A'Beckett Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & La Trobe Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & Little Lonsdale Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Wills Street & A'Beckett Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "Queen Street",
+            "to": "Wills Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Lonsdale Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lonsdale Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "McLean Alley",
+          "between": {
+            "from": "Sutherland Street",
+            "to": "Guildford Lane"
+          },
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Mitchell Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "PL5103",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "PT5112",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Flanigan Lane"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "A'Beckett Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "A'Beckett Street",
+            "to": "Franklin Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Little Lonsdale Street",
+            "to": "La Trobe Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Sutherland Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Timothy Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Wills Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "A'Beckett Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        }
+      ]
+    },
+    "CITY SQUARE": {
+      "assets": [
+        {
+          "name": "Centre Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Centreway Arcade",
+          "type": "arcade",
+          "str_type": "Private"
+        },
+        {
+          "name": "Chapter House Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Cocker Alley",
+          "off": "Flinders Lane",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Degraves Place",
+          "off": "Degraves Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Degraves Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Lane",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Lane",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Street",
+          "between": {
+            "from": "Swanston Street",
+            "to": "Elizabeth Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Street",
+          "between": {
+            "from": "Russell Street",
+            "to": "Swanston Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Hosier Lane",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Russell Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Swanston Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Lingham Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Manchester Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Manchester Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Monaghan Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "PH8037",
+          "off": "Flinders Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5154",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5247",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5353",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5363",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Ramsden Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Regent Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Rothsay Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Royston Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Russell Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Rutledge Lane",
+          "off": "Hosier Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Scott Alley",
+          "off": "Flinders Lane",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Swanston Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Watson Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Watson Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "TAVISTOCK": {
+      "assets": [
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Briscoe Lane",
+          "off": "Little Collins Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Collins Way",
+          "off": "Little Collins Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Equitable Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Fleming Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Fleming Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Galleria Plaza",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Gills Alley",
+          "off": "Little Collins Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Hardware Lane",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Kirks Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Little Bourke Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "McKillop Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Niagara Lane",
+          "between": {
+            "from": "Lonsdale Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5108",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5254",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "PL5255",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Platypus Alley",
+          "type": "alley",
+          "str_type": "Private"
+        },
+        {
+          "name": "Racing Club Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Rankins Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Somerset Place",
+          "off": "Little Bourke Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Warburton Alley",
+          "off": "Little Bourke Street",
+          "type": "alley",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Warburton Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "White Hart Lane",
+          "off": "Little Bourke Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "White Hart Lane",
+          "type": "lane",
+          "str_type": "Private"
+        }
+      ]
+    },
+    "BANKS": {
+      "assets": [
+        {
+          "name": "Bligh Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Bond Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl0493",
+          "off": "Equitable Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl0496",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Flinders Court"
+          },
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Commerce Way",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Equitable Place",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Fleming Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Flinders Court",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Flinders Street"
+          },
+          "type": "court",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Flinders Lane",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Fulham Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Elizabeth Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Mill Place",
+          "off": "Flinders Lane",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5116",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Ryrie Lane",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Queen Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Staughton Alley",
+          "off": "Flinders Lane",
+          "type": "alley",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "TITLES": {
+      "assets": [
+        {
+          "name": "A'Beckett Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Anthony Street",
+          "between": {
+            "from": "Franklin Street",
+            "to": "A'Beckett Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Blender Lane",
+          "off": "Franklin Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1163",
+          "off": "Franklin Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1184",
+          "off": "Queen Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Elizabeth Street",
+          "between": {
+            "from": "Franklin Street",
+            "to": "Therry Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Franklin Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & Franklin Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "La Trobe Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "PH8043",
+          "off": "A'Beckett Street",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5217",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5218",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5222",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5285",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5286",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5287",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5288",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Franklin Street",
+            "to": "Therry Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "St Bishoy Lane",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Sutherland Street"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Sutherland Street",
+          "between": {
+            "from": "La Trobe Street",
+            "to": "Little Lonsdale Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Therry Street",
+          "between": {
+            "from": "Elizabeth Street",
+            "to": "Queen Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Zevenboom Lane",
+          "off": "Little Lonsdale Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "TWIN TOWERS": {
+      "assets": [
+        {
+          "name": "Brabham Lane",
+          "off": "Ridgway Place",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1206",
+          "off": "Westwood Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Cl1286",
+          "off": "Windsor Place",
+          "type": "road",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Club Lane",
+          "off": "Little Collins Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Coates Lane",
+          "off": "Little Collins Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Lane",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Flinders Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Howitt Lane",
+          "off": "Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Intersection: Exhibition Street & Flinders Lane",
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Flinders Lane & Spring Street",
+          "type": "lane",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Flinders Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spring Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "Spring Street",
+            "to": "Exhibition Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "McGraths Lane",
+          "off": "Little Collins Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "McIlwraith Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Meyers Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "PL5123",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5235",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Ridgway Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Ridgway Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Sargood Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Spark Lane",
+          "off": "Flinders Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Spring Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Throssell Lane",
+          "between": {
+            "from": "Spring Street",
+            "to": "Flinders Lane"
+          },
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Ulster Lane",
+          "off": "Spring Street",
+          "type": "lane",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Westwood Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Windsor Place",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "place",
+          "str_type": "Council Minor"
+        }
+      ]
+    },
+    "RIALTO": {
+      "assets": [
+        {
+          "name": "Bourke Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Collins Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Commissioners Lane",
+          "type": "lane",
+          "str_type": "Private"
+        },
+        {
+          "name": "Francis Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Godfrey Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Spencer Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Spencer Street & Collins Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Spencer Street & Flinders Lane",
+          "type": "lane",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Intersection: Spencer Street & Little Collins Street",
+          "type": "intersection",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Little Collins Street",
+          "between": {
+            "from": "King Street",
+            "to": "Spencer Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Pl5012",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Pl5263",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Flinders Street",
+            "to": "Flinders Lane"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Flinders Lane",
+            "to": "Collins Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        },
+        {
+          "name": "Spencer Street",
+          "between": {
+            "from": "Collins Street",
+            "to": "Little Collins Street"
+          },
+          "type": "street",
+          "str_type": "Arterial"
+        }
+      ]
+    },
+    "HARDWARE": {
+      "assets": [
+        {
+          "name": "Intersection: Queen Street & Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Intersection: Queen Street & Little Bourke Street",
+          "type": "intersection",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Penfold Place",
+          "type": "place",
+          "str_type": "Private"
+        },
+        {
+          "name": "Penfold Place",
+          "off": "Little Collins Street",
+          "type": "place",
+          "str_type": "Council Minor"
+        },
+        {
+          "name": "Pl5253",
+          "type": "road",
+          "str_type": "Private"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Little Collins Street",
+            "to": "Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        },
+        {
+          "name": "Queen Street",
+          "between": {
+            "from": "Bourke Street",
+            "to": "Little Bourke Street"
+          },
+          "type": "street",
+          "str_type": "Council Major"
+        }
+      ]
+    }
+  }
+}

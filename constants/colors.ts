@@ -1,0 +1,38 @@
+const Colors = {
+  dark: {
+    background: '#0A1628',
+    surface: '#111C2E',
+    surfaceAlt: '#1A2740',
+    border: '#1E3050',
+    text: '#F0F4FF',
+    textSecondary: '#7A95B8',
+    textMuted: '#3D5A7A',
+    tint: '#0EA5E9',
+    tintDim: '#0C3A52',
+    accent: '#F59E0B',
+    success: '#10B981',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    tabIconDefault: '#3D5A7A',
+    tabIconSelected: '#0EA5E9',
+  },
+  light: {
+    background: '#F0F4FF',
+    surface: '#FFFFFF',
+    surfaceAlt: '#E8EFF8',
+    border: '#C8D9EF',
+    text: '#0A1628',
+    textSecondary: '#4A6280',
+    textMuted: '#8AAAC8',
+    tint: '#0284C7',
+    tintDim: '#BAE6FD',
+    accent: '#D97706',
+    success: '#059669',
+    warning: '#D97706',
+    danger: '#DC2626',
+    tabIconDefault: '#8AAAC8',
+    tabIconSelected: '#0284C7',
+  },
+};
+
+export default Colors;

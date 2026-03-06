@@ -1,0 +1,1145 @@
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  Pressable,
+  ActivityIndicator,
+  Dimensions,
+  Linking,
+  PanResponder,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  Easing,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from "react-native-reanimated";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Colors from "@/constants/colors";
+import {
+  PATROL_ZONES,
+  getZoneForLocation,
+  getHeadingLabel,
+  type PatrolZone,
+} from "@/constants/zones";
+import Compass from "@/components/Compass";
+import PatrolMap from "@/components/PatrolMap";
+import ZoneInfoModal from "@/components/ZoneInfoModal";
+import { getCurrentStreetPosition, type StreetPosition } from "@/constants/streets";
+import { getParkingZones } from "@/constants/parkingZones";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const PANEL_MIN = 196;
+const PANEL_MAX = SCREEN_HEIGHT * 0.55;
+const SWIPE_UP_THRESHOLD = 40;
+const PULL_TAB_HEIGHT = 44;
+const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
+const IS_WEB = Platform.OS === "web";
+const HEADING_THRESHOLD = 2;
+const HEADING_UPDATE_INTERVAL = 150;
+
+export default function PatrolMapScreen() {
+  const insets = useSafeAreaInsets();
+
+  // Permission hook — always call, works on both native and web
+  const [permission, requestPermission] = Location.useForegroundPermissions();
+
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracy: number | null;
+  } | null>(null);
+  const [heading, setHeading] = useState(0);
+  const [currentZone, setCurrentZone] = useState<PatrolZone | null>(null);
+  const [assignedZone, setAssignedZone] = useState<PatrolZone | null>(null);
+  const [streetPosition, setStreetPosition] = useState<StreetPosition | null>(null);
+  const [panelExpanded, setPanelExpanded] = useState(false);
+  const [panelMinimized, setPanelMinimized] = useState(false);
+  const [zoneInfoVisible, setZoneInfoVisible] = useState(false);
+  const [mapTypeIndex, setMapTypeIndex] = useState(0);
+  const MAP_TYPES = Platform.OS === 'ios'
+    ? ['mutedStandard', 'standard', 'satellite', 'hybrid'] as const
+    : ['standard', 'satellite', 'hybrid'] as const;
+  const MAP_TYPE_LABELS = Platform.OS === 'ios'
+    ? ['Dark', 'Light', 'Satellite', 'Hybrid']
+    : ['Standard', 'Satellite', 'Hybrid'];
+  const MAP_TYPE_ICONS: Array<'map-outline' | 'sunny-outline' | 'earth-outline' | 'layers-outline'> = Platform.OS === 'ios'
+    ? ['map-outline', 'sunny-outline', 'earth-outline', 'layers-outline']
+    : ['map-outline', 'earth-outline', 'layers-outline'];
+
+  const mapRef = useRef<any>(null);
+  const locationSub = useRef<Location.LocationSubscription | null>(null);
+  const headingSub = useRef<{ remove: () => void } | null>(null);
+  const lastHeadingRef = useRef(0);
+  const lastHeadingTimeRef = useRef(0);
+
+  const panelHeight = useSharedValue(PANEL_MIN);
+  const safeBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const minOverlayBottom = safeBottom + PULL_TAB_HEIGHT + 12;
+
+  const panelStyle = useAnimatedStyle(() => ({
+    height: Math.max(panelHeight.value, 0),
+    opacity: interpolate(
+      panelHeight.value,
+      [0, PANEL_MIN * 0.15, PANEL_MIN * 0.4],
+      [0, 0.3, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  const overlayBtnStyle = useAnimatedStyle(() => ({
+    bottom: Math.max(panelHeight.value + safeBottom + 16, minOverlayBottom),
+  }));
+
+  // Load saved assigned zone
+  useEffect(() => {
+    if (IS_WEB) return;
+    AsyncStorage.getItem(ASSIGNED_ZONE_KEY).then((id) => {
+      if (id) {
+        const zone = PATROL_ZONES.find((z) => z.id === id);
+        if (zone) setAssignedZone(zone);
+      }
+    });
+  }, []);
+
+  // Start watching location + heading once permission is granted
+  useEffect(() => {
+    if (IS_WEB || !permission?.granted) return;
+
+    let cancelled = false;
+
+    (async () => {
+      locationSub.current = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 3 },
+        (loc) => {
+          if (cancelled) return;
+          const { latitude, longitude, accuracy } = loc.coords;
+          setLocation({ latitude, longitude, accuracy: accuracy ?? null });
+          setCurrentZone(getZoneForLocation(latitude, longitude));
+          setStreetPosition(getCurrentStreetPosition(latitude, longitude, accuracy));
+        }
+      );
+
+      try {
+        headingSub.current = await Location.watchHeadingAsync((h) => {
+          if (cancelled) return;
+          const now = Date.now();
+          const diff = Math.abs(h.magHeading - lastHeadingRef.current);
+          const angleDiff = diff > 180 ? 360 - diff : diff;
+          if (angleDiff >= HEADING_THRESHOLD && (now - lastHeadingTimeRef.current) >= HEADING_UPDATE_INTERVAL) {
+            lastHeadingRef.current = h.magHeading;
+            lastHeadingTimeRef.current = now;
+            setHeading(h.magHeading);
+          }
+        });
+      } catch {
+        // Heading not available on all devices or simulators
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      locationSub.current?.remove();
+      headingSub.current?.remove();
+    };
+  }, [permission?.granted]);
+
+  const handleRequestPermission = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await requestPermission();
+  }, [requestPermission]);
+
+  const handleOpenSettings = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      Linking.openSettings();
+    } catch {
+      // Settings not available
+    }
+  }, []);
+
+  const springConfig = { damping: 20, stiffness: 180, overshootClamping: true };
+  const animatingRef = useRef(false);
+  const minimizeTokenRef = useRef(0);
+
+  const clearAnimating = useCallback(() => {
+    animatingRef.current = false;
+  }, []);
+
+  const togglePanel = useCallback(() => {
+    if (panelMinimized || animatingRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (panelExpanded) {
+      panelHeight.value = withSpring(PANEL_MIN, springConfig);
+      setPanelExpanded(false);
+    } else {
+      panelHeight.value = withSpring(PANEL_MAX, springConfig);
+      setPanelExpanded(true);
+    }
+  }, [panelExpanded, panelMinimized]);
+
+  const onMinimizeComplete = useCallback((token: number) => {
+    if (token === minimizeTokenRef.current) {
+      setPanelMinimized(true);
+    }
+    animatingRef.current = false;
+  }, []);
+
+  const minimizePanel = useCallback(() => {
+    if (animatingRef.current) return;
+    animatingRef.current = true;
+    const token = ++minimizeTokenRef.current;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (panelExpanded) setPanelExpanded(false);
+    panelHeight.value = withTiming(0, {
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+    }, (finished) => {
+      if (finished) {
+        runOnJS(onMinimizeComplete)(token);
+      } else {
+        runOnJS(clearAnimating)();
+      }
+    });
+  }, [panelExpanded, onMinimizeComplete, clearAnimating]);
+
+  const restorePanel = useCallback(() => {
+    minimizeTokenRef.current++;
+    animatingRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPanelMinimized(false);
+    panelHeight.value = withTiming(PANEL_MIN, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    }, () => {
+      runOnJS(clearAnimating)();
+    });
+  }, [clearAnimating]);
+
+  const pullTabPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dy) > 5,
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy < -SWIPE_UP_THRESHOLD) {
+            restorePanel();
+          }
+        },
+      }),
+    [restorePanel],
+  );
+
+  const assignZone = useCallback(async (zone: PatrolZone) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setAssignedZone(zone);
+    await AsyncStorage.setItem(ASSIGNED_ZONE_KEY, zone.id);
+    panelHeight.value = withSpring(PANEL_MIN, springConfig);
+    setPanelExpanded(false);
+  }, []);
+
+  const centerOnUser = useCallback(() => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
+        },
+        600
+      );
+    }
+  }, [location]);
+
+  const headingLabel = useMemo(() => getHeadingLabel(heading), [Math.round(heading)]);
+  const parkingZones = useMemo(() => {
+    if (!streetPosition) return [];
+    return getParkingZones(streetPosition.street, streetPosition.from, streetPosition.to);
+  }, [streetPosition?.street, streetPosition?.from, streetPosition?.to]);
+
+  // ── Web fallback ──────────────────────────────────────────────────
+  if (IS_WEB) {
+    return (
+      <View style={[styles.centered, { paddingTop: 67, paddingBottom: 34 }]}>
+        <MaterialCommunityIcons name="cellphone" size={56} color={Colors.dark.tint} />
+        <Text style={styles.permTitle}>Mobile App Required</Text>
+        <Text style={styles.permSubtitle}>
+          Scan the QR code with Expo Go on iOS or Android to use Patrol Zones.
+        </Text>
+      </View>
+    );
+  }
+
+  // ── Permission not yet determined (first launch) ──────────────────
+  if (!permission) {
+    return (
+      <View style={[styles.permScreen, { paddingTop: insets.top + 32 }]}>
+        <View style={styles.permContent}>
+          <View style={styles.permIconRing}>
+            <Ionicons name="location" size={40} color={Colors.dark.tint} />
+          </View>
+          <Text style={styles.permTitle}>Location Access</Text>
+          <Text style={styles.permSubtitle}>
+            Patrol Zones uses your live location to show your position on the
+            Melbourne CBD map and automatically detect which patrol zone you are in.
+          </Text>
+          <ActivityIndicator
+            size="small"
+            color={Colors.dark.tint}
+            style={{ marginTop: 8 }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // ── Permission NOT granted — show request or settings ─────────────
+  if (!permission.granted) {
+    const canRetry = permission.canAskAgain;
+    return (
+      <View
+        style={[
+          styles.permScreen,
+          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 },
+        ]}
+      >
+        <View style={styles.permContent}>
+          <View style={[styles.permIconRing, { borderColor: canRetry ? Colors.dark.tint : Colors.dark.warning }]}>
+            <Ionicons
+              name={canRetry ? "location-outline" : "location-sharp"}
+              size={40}
+              color={canRetry ? Colors.dark.tint : Colors.dark.warning}
+            />
+          </View>
+
+          <Text style={styles.permTitle}>Location Required</Text>
+          <Text style={styles.permSubtitle}>
+            {canRetry
+              ? "Patrol Zones needs access to your location to show your position on the patrol map and detect your zone automatically."
+              : "Location access was denied. To use Patrol Zones, please enable location access in your device Settings for Expo Go."}
+          </Text>
+
+          {canRetry ? (
+            <TouchableOpacity
+              style={styles.permBtn}
+              onPress={handleRequestPermission}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="location" size={18} color="#fff" />
+              <Text style={styles.permBtnText}>Allow Location Access</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.permBtn, { backgroundColor: Colors.dark.warning }]}
+              onPress={handleOpenSettings}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="settings-outline" size={18} color="#fff" />
+              <Text style={styles.permBtnText}>Open Settings</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.permHint}>
+            {canRetry
+              ? "Tap above to see the system permission prompt"
+              : "Enable Location for Expo Go, then return to this app"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Permission GRANTED — show map ─────────────────────────────────
+  const isInAssigned =
+    !!currentZone && !!assignedZone && currentZone.id === assignedZone.id;
+  const isOutsideAssigned =
+    !!assignedZone && !!currentZone && currentZone.id !== assignedZone.id;
+
+  return (
+    <View style={styles.root}>
+      {/* ── Map ── */}
+      <PatrolMap
+        ref={mapRef}
+        location={location}
+        heading={heading}
+        currentZoneId={currentZone?.id ?? null}
+        assignedZoneId={assignedZone?.id ?? null}
+        mapType={MAP_TYPES[mapTypeIndex] as any}
+        onMapReady={() => {}}
+      />
+
+      {/* ── Header ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <MaterialCommunityIcons
+              name="shield-outline"
+              size={16}
+              color={Colors.dark.tint}
+            />
+            <Text style={styles.appTitle}>PATROL ZONES</Text>
+          </View>
+          <View style={styles.gpsChip}>
+            <View
+              style={[
+                styles.gpsDot,
+                { backgroundColor: location ? Colors.dark.success : Colors.dark.warning },
+              ]}
+            />
+            <Text style={styles.gpsText}>
+              {location
+                ? `±${location.accuracy ? Math.round(location.accuracy) : "?"}m`
+                : "Acquiring GPS..."}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.zoneStatusRow}>
+          <View style={styles.zoneChip}>
+            <Text style={styles.zoneChipLabel}>ASSIGNED</Text>
+            <Text
+              style={[
+                styles.zoneChipValue,
+                { color: assignedZone?.color ?? Colors.dark.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {assignedZone?.name ?? "Not Set"}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={Colors.dark.textMuted} />
+          <View style={styles.zoneChip}>
+            <Text style={styles.zoneChipLabel}>CURRENT</Text>
+            <Text
+              style={[
+                styles.zoneChipValue,
+                { color: currentZone?.color ?? Colors.dark.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {currentZone?.name ?? "Outside Zones"}
+            </Text>
+          </View>
+        </View>
+
+        {isOutsideAssigned && (
+          <View style={styles.alertBanner}>
+            <Ionicons name="warning" size={13} color={Colors.dark.warning} />
+            <Text style={styles.alertText}>
+              Outside assigned zone — now in {currentZone?.name}
+            </Text>
+          </View>
+        )}
+        {isInAssigned && (
+          <View style={[styles.alertBanner, styles.alertSuccess]}>
+            <Ionicons name="checkmark-circle" size={13} color={Colors.dark.success} />
+            <Text style={[styles.alertText, { color: Colors.dark.success }]}>
+              In assigned zone
+            </Text>
+          </View>
+        )}
+
+        {streetPosition && (
+          <View style={styles.streetPositionCard}>
+            <Ionicons name="location" size={14} color={Colors.dark.tint} style={styles.streetPositionIcon} />
+            <View style={styles.streetPositionInfo}>
+              <Text style={styles.streetPositionName}>{streetPosition.street.toUpperCase()}</Text>
+              <Text style={styles.streetPositionSegment}>
+                {streetPosition.from} → {streetPosition.to}
+              </Text>
+              {streetPosition.side !== '' && (
+                <Text style={styles.streetPositionSide}>{streetPosition.side} side</Text>
+              )}
+              {parkingZones.length > 0 && (
+                <Text style={styles.streetPositionZones}>
+                  P {parkingZones.join(', ')}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* ── Overlay buttons (single set, animated position with panel) ── */}
+      <Animated.View style={[styles.overlayButtonsRow, overlayBtnStyle]}>
+        <TouchableOpacity
+          style={styles.mapTypeBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setMapTypeIndex((i) => (i + 1) % MAP_TYPES.length);
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name={MAP_TYPE_ICONS[mapTypeIndex]} size={20} color={Colors.dark.tint} />
+          <Text style={styles.mapTypeLabel}>{MAP_TYPE_LABELS[mapTypeIndex]}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.overlayButtonsRight}>
+          {assignedZone && (
+            <TouchableOpacity
+              style={styles.zoneInfoBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setZoneInfoVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="list-outline" size={20} color={Colors.dark.tint} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.locateBtn}
+            onPress={centerOnUser}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="locate" size={22} color={Colors.dark.tint} />
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* ── Pull-tab bar (visible when panel is minimized) ── */}
+      {panelMinimized && (
+        <View
+          style={[styles.pullTabBar, { paddingBottom: safeBottom }]}
+          {...pullTabPanResponder.panHandlers}
+        >
+          <TouchableOpacity
+            onPress={restorePanel}
+            activeOpacity={0.7}
+            style={styles.pullTabTouchArea}
+          >
+            <View style={styles.pullTabHandle} />
+            <View style={styles.pullTabLabelRow}>
+              <Ionicons name="compass-outline" size={14} color={Colors.dark.tint} />
+              <Text style={styles.pullTabLabel}>SHOW PANEL</Text>
+              <Ionicons name="chevron-up" size={14} color={Colors.dark.textMuted} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Bottom panel ── */}
+      <Animated.View
+        style={[
+          styles.panel,
+          panelStyle,
+          { paddingBottom: panelMinimized ? 0 : safeBottom + 8 },
+        ]}
+        pointerEvents={panelMinimized ? "none" : "auto"}
+      >
+        <View style={styles.handleRow}>
+          <TouchableOpacity
+            style={styles.handleArea}
+            onPress={togglePanel}
+            activeOpacity={0.7}
+          >
+            <View style={styles.handle} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.minimizeBtn}
+            onPress={minimizePanel}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-down" size={18} color={Colors.dark.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.compassRow}>
+          <Compass heading={heading} size={108} />
+
+          <View style={styles.headingInfo}>
+            <Text style={styles.headingDir}>{headingLabel.cardinal}</Text>
+            <Text style={styles.headingStreet}>{headingLabel.street}</Text>
+          </View>
+
+          <View style={styles.panelRight}>
+            <TouchableOpacity
+              style={styles.expandBtn}
+              onPress={togglePanel}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.expandBtnLabel}>
+                {panelExpanded ? "CLOSE" : "ASSIGN"}
+              </Text>
+              <Ionicons
+                name={panelExpanded ? "chevron-down" : "chevron-up"}
+                size={14}
+                color={Colors.dark.tint}
+              />
+            </TouchableOpacity>
+
+            {assignedZone && (
+              <View
+                style={[styles.assignedBadge, { borderColor: assignedZone.color }]}
+              >
+                <View
+                  style={[
+                    styles.assignedBadgeDot,
+                    { backgroundColor: assignedZone.color },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.assignedBadgeText,
+                    { color: assignedZone.color },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {assignedZone.name}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {panelExpanded && (
+          <View style={styles.zoneSelector}>
+            <Text style={styles.zoneSelectorTitle}>SELECT ASSIGNED ZONE</Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.zoneListContent}
+            >
+              {PATROL_ZONES.map((zone) => {
+                const isSelected = assignedZone?.id === zone.id;
+                const isCurrent = currentZone?.id === zone.id;
+                return (
+                  <Pressable
+                    key={zone.id}
+                    style={({ pressed }) => [
+                      styles.zoneRow,
+                      isSelected && {
+                        backgroundColor: zone.color + "22",
+                        borderColor: zone.color + "55",
+                      },
+                      pressed && { opacity: 0.72 },
+                    ]}
+                    onPress={() => assignZone(zone)}
+                  >
+                    <View
+                      style={[styles.zoneBar, { backgroundColor: zone.color }]}
+                    />
+                    <View style={styles.zoneRowInfo}>
+                      <Text
+                        style={[
+                          styles.zoneRowName,
+                          isSelected && { color: zone.color },
+                        ]}
+                      >
+                        {zone.name}
+                      </Text>
+                      <Text style={styles.zoneRowDesc}>{zone.description}</Text>
+                    </View>
+                    <View style={styles.zoneRowRight}>
+                      {isCurrent && (
+                        <View
+                          style={[
+                            styles.hereBadge,
+                            {
+                              backgroundColor: zone.color + "33",
+                              borderColor: zone.color,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.hereBadgeText, { color: zone.color }]}>
+                            HERE
+                          </Text>
+                        </View>
+                      )}
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={20} color={zone.color} />
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* ── Zone Info Modal ── */}
+      <ZoneInfoModal
+        zone={assignedZone}
+        visible={zoneInfoVisible}
+        onClose={() => setZoneInfoVisible(false)}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+  },
+
+  // Permission screens
+  permScreen: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  permContent: {
+    alignItems: "center",
+    gap: 16,
+    maxWidth: 340,
+    width: "100%",
+  },
+  permIconRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: Colors.dark.tint,
+    backgroundColor: Colors.dark.tintDim,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  permTitle: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.text,
+    fontSize: 20,
+    textAlign: "center",
+  },
+  permSubtitle: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+  permBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.dark.tint,
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 28,
+    marginTop: 8,
+    width: "100%",
+    justifyContent: "center",
+  },
+  permBtnText: {
+    fontFamily: "RobotoMono_700Bold",
+    color: "#fff",
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  permHint: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 11,
+    textAlign: "center",
+    lineHeight: 17,
+  },
+
+  // Header
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(10,22,40,0.90)",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  appTitle: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.text,
+    fontSize: 12,
+    letterSpacing: 2.5,
+  },
+  gpsChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: Colors.dark.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  gpsDot: { width: 7, height: 7, borderRadius: 3.5 },
+  gpsText: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+  },
+  zoneStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  zoneChip: { flex: 1, gap: 2 },
+  zoneChipLabel: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 8,
+    letterSpacing: 2,
+  },
+  zoneChipValue: {
+    fontFamily: "RobotoMono_700Bold",
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  alertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(245,158,11,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.25)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+  },
+  alertSuccess: {
+    backgroundColor: "rgba(16,185,129,0.10)",
+    borderColor: "rgba(16,185,129,0.25)",
+  },
+  alertText: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.warning,
+    fontSize: 11,
+    flex: 1,
+  },
+
+  streetPositionCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "rgba(14,165,233,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(14,165,233,0.20)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  streetPositionIcon: {
+    marginTop: 1,
+  },
+  streetPositionInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  streetPositionName: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.text,
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+  streetPositionSegment: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+  },
+  streetPositionSide: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.tint,
+    fontSize: 11,
+  },
+  streetPositionZones: {
+    fontFamily: "RobotoMono_400Regular",
+    color: '#FF7DAF',
+    fontSize: 12,
+    fontWeight: '600' as const,
+    marginTop: 2,
+  },
+
+  overlayButtonsRow: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  overlayButtonsRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  // Zone info button
+  zoneInfoBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.dark.surface,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Map type button
+  mapTypeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.dark.surface,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  mapTypeLabel: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.text,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+
+  // Locate button
+  locateBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.dark.surface,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Bottom panel
+  panel: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(10,22,40,0.96)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
+    overflow: "hidden",
+  },
+  handleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  handleArea: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.dark.border,
+  },
+  minimizeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pullTabBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(10,22,40,0.96)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
+    zIndex: 20,
+  },
+  pullTabTouchArea: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  pullTabHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.dark.border,
+  },
+  pullTabLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pullTabLabel: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.textSecondary,
+    fontSize: 10,
+    letterSpacing: 2,
+  },
+  compassRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 14,
+    marginBottom: 6,
+  },
+  headingInfo: { flex: 1, gap: 1 },
+  headingDir: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.tint,
+    fontSize: 15,
+    letterSpacing: 3,
+  },
+  headingStreet: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    letterSpacing: 1,
+    marginTop: 1,
+    marginBottom: 2,
+  },
+  panelRight: {
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  expandBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.dark.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Colors.dark.tint + "44",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  expandBtnLabel: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.tint,
+    fontSize: 10,
+    letterSpacing: 1.5,
+  },
+  assignedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: 110,
+  },
+  assignedBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    flexShrink: 0,
+  },
+  assignedBadgeText: {
+    fontFamily: "RobotoMono_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.5,
+    flexShrink: 1,
+  },
+  // Zone selector
+  zoneSelector: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  zoneSelectorTitle: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.textMuted,
+    fontSize: 8,
+    letterSpacing: 2.5,
+    marginBottom: 8,
+  },
+  zoneListContent: {
+    gap: 5,
+    paddingBottom: 8,
+  },
+  zoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    overflow: "hidden",
+    paddingRight: 12,
+    minHeight: 50,
+  },
+  zoneBar: {
+    width: 4,
+    alignSelf: "stretch",
+    marginRight: 12,
+  },
+  zoneRowInfo: { flex: 1, paddingVertical: 10, gap: 2 },
+  zoneRowName: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.text,
+    fontSize: 13,
+    letterSpacing: 0.4,
+  },
+  zoneRowDesc: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 9,
+    letterSpacing: 0.4,
+  },
+  zoneRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 8,
+  },
+  hereBadge: {
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  hereBadgeText: {
+    fontFamily: "RobotoMono_700Bold",
+    fontSize: 8,
+    letterSpacing: 1,
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    gap: 16,
+  },
+});
