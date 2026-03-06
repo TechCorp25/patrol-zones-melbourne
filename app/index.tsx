@@ -336,6 +336,11 @@ export default function PatrolMapScreen() {
     setPinValue("");
   }, [attendanceNotes, code21Type, description, dispatchNotes, pinValue, requestTime, selectedAddress, travelMode]);
 
+  const openCode21Modal = useCallback(() => {
+    setRequestTime(new Date().toISOString().slice(0, 16));
+    setCode21ModalVisible(true);
+  }, []);
+
   const loadCode21Requests = useCallback(async () => {
     try {
       const params = new URLSearchParams({ officerNumber: OFFICER_NUMBER });
@@ -580,33 +585,6 @@ export default function PatrolMapScreen() {
           </View>
         )}
 
-        <View style={styles.searchCard}>
-          <TextInput
-            value={addressQuery}
-            onChangeText={(text) => {
-              setAddressQuery(text);
-              setAddressSuggestions(searchAddressOptions(text));
-            }}
-            placeholder="Search code21 address"
-            placeholderTextColor={Colors.dark.textMuted}
-            style={styles.searchInput}
-          />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
-            {addressSuggestions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.searchResultChip}
-                onPress={() => {
-                  setSelectedAddress({ label: option.label, latitude: option.latitude, longitude: option.longitude });
-                  setAddressQuery(option.label);
-                  setCode21ModalVisible(true);
-                }}
-              >
-                <Text style={styles.searchResultText}>{option.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
       </View>
 
       {/* ── Overlay buttons (single set, animated position with panel) ── */}
@@ -636,13 +614,22 @@ export default function PatrolMapScreen() {
               <Ionicons name="list-outline" size={20} color={Colors.dark.tint} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={styles.locateBtn}
-            onPress={centerOnUser}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="locate" size={22} color={Colors.dark.tint} />
-          </TouchableOpacity>
+          <View style={styles.quickActionsCol}>
+            <TouchableOpacity
+              style={styles.code21Btn}
+              onPress={openCode21Modal}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.code21BtnText}>21</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.locateBtn}
+              onPress={centerOnUser}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="locate" size={22} color={Colors.dark.tint} />
+            </TouchableOpacity>
+          </View>
         </View>
       </Animated.View>
 
@@ -807,29 +794,67 @@ export default function PatrolMapScreen() {
         )}
       </Animated.View>
 
-      <Modal visible={code21ModalVisible} transparent animationType="slide" onRequestClose={() => setCode21ModalVisible(false)}>
-        <View style={styles.modalBackdrop}>
+      <Modal visible={code21ModalVisible} transparent animationType="fade" onRequestClose={() => setCode21ModalVisible(false)} statusBarTranslucent>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Code21 Request</Text>
-            <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
-            <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
-            <ScrollView style={styles.typeScrollView} nestedScrollEnabled>
-              <View style={styles.typeRow}>
-                {getCode21Types().map((type) => (
-                  <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
-                    <Text style={styles.typeChipText}>{type}</Text>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderBar} />
+              <View style={styles.modalHeaderTextWrap}>
+                <Text style={styles.modalTitle}>CODE21 REQUEST</Text>
+                <Text style={styles.modalSubtitle}>Dispatch and attendance workflow</Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setCode21ModalVisible(false)} activeOpacity={0.8}>
+                <Ionicons name="close" size={22} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false}>
+              <TextInput
+                value={addressQuery}
+                onChangeText={(text) => {
+                  setAddressQuery(text);
+                  setAddressSuggestions(searchAddressOptions(text));
+                }}
+                placeholder="Search code21 address"
+                placeholderTextColor={Colors.dark.textMuted}
+                style={styles.modalInput}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
+                {addressSuggestions.map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={styles.searchResultChip}
+                    onPress={() => {
+                      setSelectedAddress({ label: option.label, latitude: option.latitude, longitude: option.longitude });
+                      setAddressQuery(option.label);
+                    }}
+                  >
+                    <Text style={styles.searchResultText}>{option.label}</Text>
                   </TouchableOpacity>
                 ))}
+              </ScrollView>
+
+              <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
+              <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+              <ScrollView style={styles.typeScrollView} nestedScrollEnabled>
+                <View style={styles.typeRow}>
+                  {getCode21Types().map((type) => (
+                    <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
+                      <Text style={styles.typeChipText}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
+              <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
+              <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
+              <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN" placeholderTextColor={Colors.dark.textMuted} />
+              <View style={styles.travelRow}>
+                <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
               </View>
             </ScrollView>
-            <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
-            <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
-            <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
-            <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN" placeholderTextColor={Colors.dark.textMuted} />
-            <View style={styles.travelRow}>
-              <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
-            </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setCode21ModalVisible(false)}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={submitCode21}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
@@ -1066,6 +1091,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  quickActionsCol: {
+    alignItems: "center",
+    gap: 8,
+  },
+  code21Btn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.dark.surface,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  code21BtnText: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.tint,
+    fontSize: 16,
+    letterSpacing: 0.8,
   },
 
   // Zone info button
@@ -1345,24 +1390,63 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     fontSize: 11,
   },
-  modalBackdrop: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   modalCard: {
     backgroundColor: Colors.dark.surface,
     borderWidth: 1,
     borderColor: Colors.dark.border,
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
+    borderRadius: 18,
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "84%",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  modalHeaderBar: {
+    width: 4,
+    height: 36,
+    borderRadius: 2,
+    backgroundColor: Colors.dark.tint,
+    marginRight: 12,
+  },
+  modalHeaderTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   modalTitle: {
+    fontFamily: "RobotoMono_700Bold",
     color: Colors.dark.text,
     fontSize: 16,
-    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+  },
+  modalSubtitle: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalBodyContent: {
+    padding: 12,
+    gap: 8,
   },
   modalAddress: {
     color: Colors.dark.tint,
