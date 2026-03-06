@@ -3,9 +3,15 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
+import { classifyUnknownError, type ApiErrorShape } from "./errors";
+import {
+  buildRequestLogContext,
+  getOrCreateRequestId,
+  logStructured,
+} from "./observability";
+import { validateEnvGuardrails } from "./env";
 
 const app = express();
-const log = console.log;
 
 declare module "http" {
   interface IncomingMessage {
@@ -50,7 +56,7 @@ function setupCors(app: express.Application) {
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, X-Request-Id");
       res.header("Access-Control-Allow-Credentials", "true");
     }
 
@@ -76,31 +82,19 @@ function setupBodyParsing(app: express.Application) {
 
 function setupRequestLogging(app: express.Application) {
   app.use((req, res, next) => {
-    const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: Record<string, unknown> | undefined = undefined;
+    const requestId = getOrCreateRequestId(req);
+    res.setHeader("x-request-id", requestId);
 
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
+    const start = Date.now();
 
     res.on("finish", () => {
-      if (!path.startsWith("/api")) return;
+      if (!req.path.startsWith("/api")) return;
 
-      const duration = Date.now() - start;
-
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      const durationMs = Date.now() - start;
+      logStructured("info", "API request completed", {
+        ...buildRequestLogContext(req, res),
+        durationMs,
+      });
     });
 
     next();
@@ -158,8 +152,10 @@ function serveLandingPage({
   const baseUrl = `${protocol}://${host}`;
   const expsUrl = `${host}`;
 
-  log(`baseUrl`, baseUrl);
-  log(`expsUrl`, expsUrl);
+  logStructured("info", "Resolved landing page host", {
+    baseUrl,
+    expsUrl,
+  });
 
   const html = landingPageTemplate
     .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
@@ -180,7 +176,7 @@ function configureExpoAndLanding(app: express.Application) {
   const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   const appName = getAppName();
 
-  log("Serving static Expo files with dynamic manifest routing");
+  logStructured("info", "Serving static Expo files with dynamic manifest routing");
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api")) {
@@ -211,31 +207,44 @@ function configureExpoAndLanding(app: express.Application) {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  log("Expo routing: Checking expo-platform header on / and /manifest");
+  logStructured("info", "Expo routing configured");
 }
 
 function setupErrorHandler(app: express.Application) {
-  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
-    const error = err as {
-      status?: number;
-      statusCode?: number;
-      message?: string;
-    };
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    const classifiedError = classifyUnknownError(err);
 
-    const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
-
-    console.error("Internal Server Error:", err);
+    logStructured("error", "Unhandled request error", {
+      requestId: res.getHeader("x-request-id") || getOrCreateRequestId(req),
+      path: req.path,
+      method: req.method,
+      statusCode: classifiedError.statusCode,
+      code: classifiedError.code,
+      details: classifiedError.details,
+    });
 
     if (res.headersSent) {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    const response: ApiErrorShape = {
+      error: {
+        code: classifiedError.code,
+        message: classifiedError.message,
+        requestId: String(res.getHeader("x-request-id") || "unknown"),
+        ...(classifiedError.details
+          ? { details: classifiedError.details }
+          : {}),
+      },
+    };
+
+    return res.status(classifiedError.statusCode).json(response);
   });
 }
 
 (async () => {
+  validateEnvGuardrails();
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
@@ -254,7 +263,7 @@ function setupErrorHandler(app: express.Application) {
       reusePort: true,
     },
     () => {
-      log(`express server serving on port ${port}`);
+      logStructured("info", "Express server started", { port });
     },
   );
 })();

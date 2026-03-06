@@ -39,10 +39,10 @@ Objective: Ensure the codebase compiles cleanly and meets baseline quality stand
 ## Phase 2 — Runtime Reliability & Observability
 Objective: Improve operational safety and incident diagnosability.
 
-- [ ] Add structured request logging with safe redaction defaults.
-- [ ] Add robust error classification and stable error response shape.
-- [ ] Add health/readiness endpoints for deployment monitoring.
-- [ ] Add startup/runtime guardrails for required environment variables.
+- [x] Add structured request logging with safe redaction defaults.
+- [x] Add robust error classification and stable error response shape.
+- [x] Add health/readiness endpoints for deployment monitoring.
+- [x] Add startup/runtime guardrails for required environment variables.
 
 ---
 
