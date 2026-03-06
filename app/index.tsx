@@ -49,6 +49,7 @@ const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
 const IS_WEB = Platform.OS === "web";
 const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
+const SPRING_CONFIG = { damping: 20, stiffness: 180, overshootClamping: true };
 
 export default function PatrolMapScreen() {
   const insets = useSafeAreaInsets();
@@ -75,7 +76,7 @@ export default function PatrolMapScreen() {
   const MAP_TYPE_LABELS = Platform.OS === 'ios'
     ? ['Dark', 'Light', 'Satellite', 'Hybrid']
     : ['Standard', 'Satellite', 'Hybrid'];
-  const MAP_TYPE_ICONS: Array<'map-outline' | 'sunny-outline' | 'earth-outline' | 'layers-outline'> = Platform.OS === 'ios'
+  const MAP_TYPE_ICONS: ('map-outline' | 'sunny-outline' | 'earth-outline' | 'layers-outline')[] = Platform.OS === 'ios'
     ? ['map-outline', 'sunny-outline', 'earth-outline', 'layers-outline']
     : ['map-outline', 'earth-outline', 'layers-outline'];
 
@@ -170,7 +171,6 @@ export default function PatrolMapScreen() {
     }
   }, []);
 
-  const springConfig = { damping: 20, stiffness: 180, overshootClamping: true };
   const animatingRef = useRef(false);
   const minimizeTokenRef = useRef(0);
 
@@ -182,13 +182,13 @@ export default function PatrolMapScreen() {
     if (panelMinimized || animatingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (panelExpanded) {
-      panelHeight.value = withSpring(PANEL_MIN, springConfig);
+      panelHeight.value = withSpring(PANEL_MIN, SPRING_CONFIG);
       setPanelExpanded(false);
     } else {
-      panelHeight.value = withSpring(PANEL_MAX, springConfig);
+      panelHeight.value = withSpring(PANEL_MAX, SPRING_CONFIG);
       setPanelExpanded(true);
     }
-  }, [panelExpanded, panelMinimized]);
+  }, [panelExpanded, panelMinimized, panelHeight]);
 
   const onMinimizeComplete = useCallback((token: number) => {
     if (token === minimizeTokenRef.current) {
@@ -213,7 +213,7 @@ export default function PatrolMapScreen() {
         runOnJS(clearAnimating)();
       }
     });
-  }, [panelExpanded, onMinimizeComplete, clearAnimating]);
+  }, [panelExpanded, onMinimizeComplete, clearAnimating, panelHeight]);
 
   const restorePanel = useCallback(() => {
     minimizeTokenRef.current++;
@@ -226,7 +226,7 @@ export default function PatrolMapScreen() {
     }, () => {
       runOnJS(clearAnimating)();
     });
-  }, [clearAnimating]);
+  }, [clearAnimating, panelHeight]);
 
   const pullTabPanResponder = useMemo(
     () =>
@@ -247,9 +247,9 @@ export default function PatrolMapScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAssignedZone(zone);
     await AsyncStorage.setItem(ASSIGNED_ZONE_KEY, zone.id);
-    panelHeight.value = withSpring(PANEL_MIN, springConfig);
+    panelHeight.value = withSpring(PANEL_MIN, SPRING_CONFIG);
     setPanelExpanded(false);
-  }, []);
+  }, [panelHeight]);
 
   const centerOnUser = useCallback(() => {
     if (location && mapRef.current) {
@@ -265,11 +265,11 @@ export default function PatrolMapScreen() {
     }
   }, [location]);
 
-  const headingLabel = useMemo(() => getHeadingLabel(heading), [Math.round(heading)]);
+  const headingLabel = useMemo(() => getHeadingLabel(heading), [heading]);
   const parkingZones = useMemo(() => {
     if (!streetPosition) return [];
     return getParkingZones(streetPosition.street, streetPosition.from, streetPosition.to);
-  }, [streetPosition?.street, streetPosition?.from, streetPosition?.to]);
+  }, [streetPosition]);
 
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {

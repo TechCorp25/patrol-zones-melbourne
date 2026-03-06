@@ -5,7 +5,6 @@ import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
 
-const ZOOM_THRESHOLD = 0.012;
 const ZOOM_THRESHOLD_NUMBERS = 0.004;
 
 const allStreetNumbers = getAllStreetNumberMarkers();
@@ -92,8 +91,10 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
   );
 });
 
-const PatrolMap = forwardRef<MapView, PatrolMapProps>(
-  ({ location, heading, currentZoneId, assignedZoneId, mapType, onMapReady }, ref) => {
+const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
+  { location, heading, currentZoneId, assignedZoneId, mapType, onMapReady },
+  ref,
+) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
     const isLightMap = resolvedMapType === 'standard';
     const isDarkStyle = !isLightMap;
@@ -146,8 +147,10 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(
         )}
       </MapView>
     );
-  }
+  },
 );
+
+PatrolMap.displayName = "PatrolMap";
 
 export default memo(PatrolMap);
 

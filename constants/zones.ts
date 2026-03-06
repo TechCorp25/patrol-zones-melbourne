@@ -29,6 +29,13 @@ export interface PatrolZone {
 
 const S = (lat: number, lng: number): LatLng => ({ latitude: lat, longitude: lng });
 
+export const MELBOURNE_CBD_REGION = {
+  latitude: -37.8146,
+  longitude: 144.9631,
+  latitudeDelta: 0.018,
+  longitudeDelta: 0.018,
+};
+
 export const PATROL_ZONES: PatrolZone[] = [
   {
     id: 'flagstaff',
