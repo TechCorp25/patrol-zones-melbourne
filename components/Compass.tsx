@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,7 +25,7 @@ function CompassInner({ heading, size = 120 }: CompassProps) {
       damping: 20,
       stiffness: 120,
     });
-  }, [heading]);
+  }, [heading, rotation]);
 
   const dialStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -73,7 +73,6 @@ function CompassInner({ heading, size = 120 }: CompassProps) {
           x={x}
           y={y}
           textAnchor="middle"
-          dominantBaseline="central"
           fill={color}
           fontSize={size * 0.1}
           fontWeight="700"
@@ -84,7 +83,7 @@ function CompassInner({ heading, size = 120 }: CompassProps) {
     });
 
     return { ticks, cardinals };
-  }, [size]);
+  }, [innerR, r, size, tickLen]);
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
