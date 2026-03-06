@@ -22,31 +22,37 @@ pip install --quiet --no-cache-dir \
   orjson pyproj requests rtree shapely tqdm
 echo "✓ Python packages installed"
 
-# ── 4. Environment variables for Codespaces ──────
-ENVFILE=".env.local"
-if [ ! -f "$ENVFILE" ]; then
-  echo "▸ Creating $ENVFILE for Codespaces..."
-  CODESPACE_DOMAIN="${CODESPACE_NAME:-localhost}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-preview.app.github.dev}"
-  cat > "$ENVFILE" <<EOF
+# ── 4. Environment file for Codespaces ────────────
+ENVFILE=".env.codespaces"
+echo "▸ Creating $ENVFILE..."
+
+if [ -n "${CODESPACE_NAME:-}" ] && [ -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]; then
+  BACKEND_URL="https://${CODESPACE_NAME}-5000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+  FRONTEND_URL="https://${CODESPACE_NAME}-8081.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+else
+  BACKEND_URL="http://localhost:5000"
+  FRONTEND_URL="http://localhost:8081"
+fi
+
+cat > "$ENVFILE" <<EOF
 PORT=5000
-EXPO_PUBLIC_DOMAIN=https://${CODESPACE_DOMAIN}:5000
+EXPO_PUBLIC_DOMAIN=${BACKEND_URL}
+CODESPACES_BACKEND_URL=${BACKEND_URL}
+CODESPACES_FRONTEND_URL=${FRONTEND_URL}
 NODE_ENV=development
 EOF
-  echo "✓ $ENVFILE created"
-else
-  echo "✓ $ENVFILE already exists — skipping"
-fi
+echo "✓ $ENVFILE created"
+echo "  Backend URL:  ${BACKEND_URL}"
+echo "  Frontend URL: ${FRONTEND_URL}"
 
 echo ""
 echo "============================================"
 echo "  Setup complete!"
 echo ""
-echo "  Start the backend:"
-echo "    npm run server:dev"
-echo ""
-echo "  Start the Expo frontend (separate terminal):"
-echo "    npx expo start --web --port 8081"
-echo ""
-echo "  Or run both together:"
+echo "  Run both servers:"
 echo "    bash .devcontainer/start.sh"
+echo ""
+echo "  Or start individually:"
+echo "    Terminal 1:  bash .devcontainer/start.sh backend"
+echo "    Terminal 2:  bash .devcontainer/start.sh frontend"
 echo "============================================"

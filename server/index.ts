@@ -27,14 +27,24 @@ function setupCors(app: express.Application) {
       });
     }
 
+    if (process.env.CODESPACES_BACKEND_URL) {
+      origins.add(process.env.CODESPACES_BACKEND_URL);
+    }
+    if (process.env.CODESPACES_FRONTEND_URL) {
+      origins.add(process.env.CODESPACES_FRONTEND_URL);
+    }
+
     const origin = req.header("origin");
 
-    // Allow localhost origins for Expo web development (any port)
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
 
-    if (origin && (origins.has(origin) || isLocalhost)) {
+    const isCodespaces =
+      origin?.endsWith(".preview.app.github.dev") ||
+      origin?.endsWith(".app.github.dev");
+
+    if (origin && (origins.has(origin) || isLocalhost || isCodespaces)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
