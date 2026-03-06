@@ -18,20 +18,100 @@ export interface PatrolMapProps {
   onMapReady?: () => void;
 }
 
-const ZonePolygons = memo(function ZonePolygons({ currentZoneId, assignedZoneId }: { currentZoneId: string | null; assignedZoneId: string | null }) {
+const LIGHT_BASED_MAP_TYPES = new Set(["standard", "satellite", "hybrid"]);
+
+function saturateHexColor(hex: string, boost: number) {
+  const normalizedHex = hex.replace("#", "");
+  const r = parseInt(normalizedHex.slice(0, 2), 16) / 255;
+  const g = parseInt(normalizedHex.slice(2, 4), 16) / 255;
+  const b = parseInt(normalizedHex.slice(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+
+  let hue = 0;
+  let saturation = 0;
+
+  if (delta !== 0) {
+    saturation = delta / (1 - Math.abs(2 * lightness - 1));
+    switch (max) {
+      case r:
+        hue = ((g - b) / delta) % 6;
+        break;
+      case g:
+        hue = (b - r) / delta + 2;
+        break;
+      default:
+        hue = (r - g) / delta + 4;
+        break;
+    }
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+
+  const boostedSaturation = Math.min(1, saturation + boost);
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * boostedSaturation;
+  const intermediate = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const match = lightness - chroma / 2;
+
+  let nextR = 0;
+  let nextG = 0;
+  let nextB = 0;
+
+  if (hue < 60) {
+    nextR = chroma;
+    nextG = intermediate;
+  } else if (hue < 120) {
+    nextR = intermediate;
+    nextG = chroma;
+  } else if (hue < 180) {
+    nextG = chroma;
+    nextB = intermediate;
+  } else if (hue < 240) {
+    nextG = intermediate;
+    nextB = chroma;
+  } else if (hue < 300) {
+    nextR = intermediate;
+    nextB = chroma;
+  } else {
+    nextR = chroma;
+    nextB = intermediate;
+  }
+
+  const toHex = (value: number) =>
+    Math.round((value + match) * 255)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${toHex(nextR)}${toHex(nextG)}${toHex(nextB)}`;
+}
+
+const ZonePolygons = memo(function ZonePolygons({
+  currentZoneId,
+  assignedZoneId,
+  mapType,
+}: {
+  currentZoneId: string | null;
+  assignedZoneId: string | null;
+  mapType: string;
+}) {
   const hasAssigned = !!assignedZoneId;
+  const useHigherSaturation = LIGHT_BASED_MAP_TYPES.has(mapType);
   return (
     <>
       {PATROL_ZONES.map((zone) => {
         const isAssigned = assignedZoneId === zone.id;
         const isCurrent = currentZoneId === zone.id;
+        const boundaryColor = useHigherSaturation ? saturateHexColor(zone.color, 0.28) : zone.color;
         let fillColor: string;
         let strokeWidth: number;
         let strokeColor: string;
         if (isAssigned) {
-          const r = parseInt(zone.color.slice(1, 3), 16);
-          const g = parseInt(zone.color.slice(3, 5), 16);
-          const b = parseInt(zone.color.slice(5, 7), 16);
+          const r = parseInt(boundaryColor.slice(1, 3), 16);
+          const g = parseInt(boundaryColor.slice(3, 5), 16);
+          const b = parseInt(boundaryColor.slice(5, 7), 16);
           const lr = Math.min(255, Math.round(r * 1.35));
           const lg = Math.min(255, Math.round(g * 1.35));
           const lb = Math.min(255, Math.round(b * 1.35));
@@ -41,15 +121,15 @@ const ZonePolygons = memo(function ZonePolygons({ currentZoneId, assignedZoneId 
         } else if (hasAssigned) {
           fillColor = `${zone.color}1A`;
           strokeWidth = 1.2;
-          strokeColor = `${zone.color}99`;
+          strokeColor = `${boundaryColor}99`;
         } else if (isCurrent) {
           fillColor = `${zone.color}46`;
           strokeWidth = 2;
-          strokeColor = zone.color;
+          strokeColor = boundaryColor;
         } else {
           fillColor = zone.fillColor;
           strokeWidth = 1.2;
-          strokeColor = zone.color;
+          strokeColor = boundaryColor;
         }
         return (
           <Polygon
@@ -121,7 +201,7 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
         onMapReady={onMapReady}
         onRegionChangeComplete={handleRegionChange}
       >
-        <ZonePolygons currentZoneId={currentZoneId} assignedZoneId={assignedZoneId} />
+        <ZonePolygons currentZoneId={currentZoneId} assignedZoneId={assignedZoneId} mapType={resolvedMapType} />
         <StreetNumberMarkers visible={showNumbers} dark={isDarkStyle} />
 
         {location && (
