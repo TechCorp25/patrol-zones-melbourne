@@ -110,3 +110,17 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Start Backend: `npm run server:dev` (port 5000)
 - Start Frontend: `npm run expo:dev` (port 8081)
 - Scan QR from Replit's URL bar to test on device via Expo Go
+
+## GitHub Codespaces
+The project includes a fully automated Codespaces setup in `.devcontainer/`:
+- **devcontainer.json** — Node 22 + Python 3.12, port forwarding (5000, 8081), VS Code extensions
+- **setup.sh** — Runs automatically on container creation: `npm ci`, patch-package, Python deps, env file
+- **start.sh** — Launches both servers with proper Codespaces URL detection
+
+Usage in Codespaces:
+1. Open the repo in GitHub Codespaces — setup runs automatically
+2. Run `bash .devcontainer/start.sh` to start both servers
+3. Or start individually: `bash .devcontainer/start.sh backend` / `bash .devcontainer/start.sh frontend`
+
+## GitHub Repository
+- Repo: https://github.com/TechCorp25/patrol-zones-melbourne
