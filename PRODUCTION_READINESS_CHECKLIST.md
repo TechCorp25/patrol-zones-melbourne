@@ -49,10 +49,10 @@ Objective: Improve operational safety and incident diagnosability.
 ## Phase 3 — Security Hardening
 Objective: Raise baseline security posture before production launch.
 
-- [ ] Replace plain credential handling with secure password hashing + verification.
-- [ ] Add auth/session protections and rate limiting for auth routes.
-- [ ] Review and tighten CORS and trusted-origin controls per environment.
-- [ ] Define secret management and rotation workflow.
+- [x] Replace plain credential handling with secure password hashing + verification.
+- [x] Add auth/session protections and rate limiting for auth routes.
+- [x] Review and tighten CORS and trusted-origin controls per environment.
+- [x] Define secret management and rotation workflow.
 
 ---
 

@@ -22,6 +22,7 @@ declare module "http" {
 function setupCors(app: express.Application) {
   app.use((req, res, next) => {
     const origins = new Set<string>();
+    const mode = process.env.NODE_ENV || "development";
 
     if (process.env.REPLIT_DEV_DOMAIN) {
       origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
@@ -50,18 +51,29 @@ function setupCors(app: express.Application) {
       origin?.endsWith(".preview.app.github.dev") ||
       origin?.endsWith(".app.github.dev");
 
-    if (origin && (origins.has(origin) || isLocalhost || isCodespaces)) {
+    const devOriginAllowed = mode !== "production" && (isLocalhost || isCodespaces);
+    const isAllowedOrigin = !!origin && (origins.has(origin) || devOriginAllowed);
+
+    if (isAllowedOrigin && origin) {
+      res.header("Vary", "Origin");
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type, X-Request-Id");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Request-Id",
+      );
       res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Max-Age", "600");
     }
 
     if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
+      if (!isAllowedOrigin) {
+        return res.sendStatus(403);
+      }
+      return res.sendStatus(204);
     }
 
     next();
