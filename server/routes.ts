@@ -1,4 +1,4 @@
-import { insertUserSchema } from "@shared/schema";
+import { insertCode21RequestSchema, insertUserSchema } from "@shared/schema";
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "node:http";
 import { z } from "zod";
@@ -61,6 +61,11 @@ function parseBearerToken(authorizationHeader?: string): string | null {
 const loginSchema = z.object({
   username: z.string().min(3).max(64),
   password: z.string().min(8).max(256),
+});
+
+
+const listCode21Schema = z.object({
+  officerNumber: z.string().min(1),
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -221,6 +226,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username: user.username,
       },
     });
+  });
+
+
+
+  app.post("/api/code21", async (req, res) => {
+    const parsed = insertCode21RequestSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid code21 request payload.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const created = await storage.createCode21Request(parsed.data);
+
+    return res.status(201).json({ request: created });
+  });
+
+  app.get("/api/code21", async (req, res) => {
+    const parsed = listCode21Schema.safeParse(req.query);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Missing or invalid officer number.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const requests = await storage.getCode21RequestsByOfficerNumber(parsed.data.officerNumber);
+
+    return res.status(200).json({ requests });
   });
 
   const httpServer = createServer(app);

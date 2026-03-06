@@ -11,6 +11,8 @@ import {
   Dimensions,
   Linking,
   PanResponder,
+  TextInput,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -39,6 +41,13 @@ import PatrolMap from "@/components/PatrolMap";
 import ZoneInfoModal from "@/components/ZoneInfoModal";
 import { getCurrentStreetPosition, type StreetPosition } from "@/constants/streets";
 import { getParkingZones } from "@/constants/parkingZones";
+import {
+  getCode21Types,
+  optimiseCode21Route,
+  searchAddressOptions,
+  type Code21Request,
+  type Code21Type,
+} from "@/constants/code21";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PANEL_MIN = 196;
@@ -46,6 +55,7 @@ const PANEL_MAX = SCREEN_HEIGHT * 0.55;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
+const OFFICER_NUMBER = "PZ-001";
 const IS_WEB = Platform.OS === "web";
 const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
@@ -70,6 +80,18 @@ export default function PatrolMapScreen() {
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [zoneInfoVisible, setZoneInfoVisible] = useState(false);
   const [mapTypeIndex, setMapTypeIndex] = useState(0);
+  const [code21ModalVisible, setCode21ModalVisible] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState(() => searchAddressOptions(""));
+  const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
+  const [requestTime, setRequestTime] = useState(new Date().toISOString().slice(0, 16));
+  const [code21Type, setCode21Type] = useState<Code21Type>("Welfare Check");
+  const [description, setDescription] = useState("");
+  const [dispatchNotes, setDispatchNotes] = useState("");
+  const [attendanceNotes, setAttendanceNotes] = useState("");
+  const [pinValue, setPinValue] = useState("");
+  const [travelMode, setTravelMode] = useState<"foot" | "vehicle">("foot");
   const MAP_TYPES = Platform.OS === 'ios'
     ? ['mutedStandard', 'standard', 'satellite', 'hybrid'] as const
     : ['standard', 'satellite', 'hybrid'] as const;
@@ -271,6 +293,66 @@ export default function PatrolMapScreen() {
     return getParkingZones(streetPosition.street, streetPosition.from, streetPosition.to);
   }, [streetPosition]);
 
+  const routeOrderedRequests = useMemo(() => {
+    if (!location || code21Requests.length === 0) return code21Requests;
+    return optimiseCode21Route(location, code21Requests);
+  }, [location, code21Requests]);
+
+  const submitCode21 = useCallback(async () => {
+    if (!selectedAddress) return;
+
+    const payload = {
+      officerNumber: OFFICER_NUMBER,
+      addressLabel: selectedAddress.label,
+      latitude: selectedAddress.latitude,
+      longitude: selectedAddress.longitude,
+      requestTime: new Date(requestTime).toISOString(),
+      code21Type,
+      dispatchNotes,
+      attendanceNotes,
+      pin: pinValue,
+      travelMode,
+      description,
+    };
+
+    try {
+      const response = await fetch("/api/code21", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json();
+      if (response.ok && body.request) {
+        setCode21Requests((prev) => [...prev, body.request]);
+      }
+    } catch {
+      // keep UI responsive if API unavailable
+    }
+
+    setCode21ModalVisible(false);
+    setDescription("");
+    setDispatchNotes("");
+    setAttendanceNotes("");
+    setPinValue("");
+  }, [attendanceNotes, code21Type, description, dispatchNotes, pinValue, requestTime, selectedAddress, travelMode]);
+
+  const loadCode21Requests = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ officerNumber: OFFICER_NUMBER });
+      const response = await fetch(`/api/code21?${params.toString()}`);
+      const body = await response.json();
+      if (response.ok && Array.isArray(body.requests)) {
+        setCode21Requests(body.requests);
+      }
+    } catch {
+      // ignore offline bootstrap errors
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCode21Requests();
+  }, [loadCode21Requests]);
+
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {
     return (
@@ -378,6 +460,31 @@ export default function PatrolMapScreen() {
         heading={heading}
         currentZoneId={currentZone?.id ?? null}
         assignedZoneId={assignedZone?.id ?? null}
+        destinations={code21Requests.map((request) => ({
+          id: request.id,
+          latitude: request.latitude,
+          longitude: request.longitude,
+          title: request.addressLabel,
+          subtitle: request.code21Type,
+        }))}
+        onDestinationPress={(destinationId) => {
+          const request = code21Requests.find((entry) => entry.id === destinationId);
+          if (request) {
+            setSelectedAddress({
+              label: request.addressLabel,
+              latitude: request.latitude,
+              longitude: request.longitude,
+            });
+            setRequestTime(request.requestTime.slice(0, 16));
+            setCode21Type(request.code21Type);
+            setDispatchNotes(request.dispatchNotes);
+            setAttendanceNotes(request.attendanceNotes);
+            setPinValue(request.pin);
+            setDescription(request.description);
+            setTravelMode(request.travelMode);
+            setCode21ModalVisible(true);
+          }
+        }}
         mapType={MAP_TYPES[mapTypeIndex] as any}
         onMapReady={() => {}}
       />
@@ -472,6 +579,34 @@ export default function PatrolMapScreen() {
             </View>
           </View>
         )}
+
+        <View style={styles.searchCard}>
+          <TextInput
+            value={addressQuery}
+            onChangeText={(text) => {
+              setAddressQuery(text);
+              setAddressSuggestions(searchAddressOptions(text));
+            }}
+            placeholder="Search code21 address"
+            placeholderTextColor={Colors.dark.textMuted}
+            style={styles.searchInput}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
+            {addressSuggestions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={styles.searchResultChip}
+                onPress={() => {
+                  setSelectedAddress({ label: option.label, latitude: option.latitude, longitude: option.longitude });
+                  setAddressQuery(option.label);
+                  setCode21ModalVisible(true);
+                }}
+              >
+                <Text style={styles.searchResultText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* ── Overlay buttons (single set, animated position with panel) ── */}
@@ -671,6 +806,42 @@ export default function PatrolMapScreen() {
           </View>
         )}
       </Animated.View>
+
+      <Modal visible={code21ModalVisible} transparent animationType="slide" onRequestClose={() => setCode21ModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Code21 Request</Text>
+            <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
+            <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+            <View style={styles.typeRow}>
+              {getCode21Types().map((type) => (
+                <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
+                  <Text style={styles.typeChipText}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
+            <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
+            <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
+            <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN" placeholderTextColor={Colors.dark.textMuted} />
+            <View style={styles.travelRow}>
+              <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setCode21ModalVisible(false)}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={submitCode21}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <View style={styles.routeCard}>
+        <Text style={styles.routeTitle}>Optimised Route ({travelMode === "foot" ? "on foot" : "vehicle"})</Text>
+        {routeOrderedRequests.slice(0, 4).map((request, index) => (
+          <Text key={request.id} style={styles.routeItem}>{index + 1}. {request.addressLabel}</Text>
+        ))}
+      </View>
 
       {/* ── Zone Info Modal ── */}
       <ZoneInfoModal
@@ -1141,5 +1312,152 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 32,
     gap: 16,
+  },
+
+  searchCard: {
+    marginTop: 10,
+    gap: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    color: Colors.dark.text,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+  },
+  searchResultsRow: {
+    gap: 8,
+  },
+  searchResultChip: {
+    backgroundColor: Colors.dark.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  searchResultText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: Colors.dark.surface,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  modalTitle: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  modalAddress: {
+    color: Colors.dark.tint,
+    fontSize: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: Colors.dark.text,
+    fontSize: 12,
+    backgroundColor: Colors.dark.surfaceAlt,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  typeChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  typeChipActive: {
+    backgroundColor: Colors.dark.tintDim,
+    borderColor: Colors.dark.tint,
+  },
+  typeChipText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 10,
+  },
+  travelRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  travelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  travelBtnActive: {
+    borderColor: Colors.dark.tint,
+    backgroundColor: Colors.dark.tintDim,
+  },
+  travelBtnText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  modalCancel: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalCancelText: {
+    color: Colors.dark.textMuted,
+  },
+  modalSave: {
+    backgroundColor: Colors.dark.tint,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontWeight: '700' as const,
+  },
+  routeCard: {
+    position: 'absolute',
+    top: 220,
+    right: 12,
+    width: 180,
+    backgroundColor: 'rgba(10,22,40,0.92)',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 10,
+    padding: 8,
+    gap: 4,
+  },
+  routeTitle: {
+    color: Colors.dark.text,
+    fontSize: 10,
+    fontWeight: '700' as const,
+  },
+  routeItem: {
+    color: Colors.dark.textSecondary,
+    fontSize: 10,
   },
 });
