@@ -43,8 +43,11 @@ import { getCurrentStreetPosition, type StreetPosition } from "@/constants/stree
 import { getParkingZones } from "@/constants/parkingZones";
 import {
   getCode21Types,
+  getVehicleColours,
+  getVehicleMakes,
   optimiseCode21Route,
   searchAddressOptions,
+  searchFilterOptions,
   type Code21Request,
   type Code21Type,
 } from "@/constants/code21";
@@ -55,7 +58,7 @@ const PANEL_MAX = SCREEN_HEIGHT * 0.55;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
-const OFFICER_NUMBER = "PZ-001";
+const DEFAULT_OFFICER_NUMBER = "PZ-001";
 const IS_WEB = Platform.OS === "web";
 const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
@@ -85,12 +88,21 @@ export default function PatrolMapScreen() {
   const [addressQuery, setAddressQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState(() => searchAddressOptions(""));
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
+  const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
+  const [serviceRequestNumber, setServiceRequestNumber] = useState("");
   const [requestTime, setRequestTime] = useState(new Date().toISOString().slice(0, 16));
+  const [offenceDate, setOffenceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [offenceTime, setOffenceTime] = useState(new Date().toISOString().slice(11, 16));
   const [code21Type, setCode21Type] = useState<Code21Type>("621 - Stopped in no parking");
   const [description, setDescription] = useState("");
   const [dispatchNotes, setDispatchNotes] = useState("");
   const [attendanceNotes, setAttendanceNotes] = useState("");
   const [pinValue, setPinValue] = useState("");
+  const [vehicleMakeQuery, setVehicleMakeQuery] = useState("");
+  const [vehicleColourQuery, setVehicleColourQuery] = useState("");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleColour, setVehicleColour] = useState("");
+  const [vehicleRego, setVehicleRego] = useState("");
   const [travelMode, setTravelMode] = useState<"foot" | "vehicle">("foot");
   const MAP_TYPES = Platform.OS === 'ios'
     ? ['mutedStandard', 'standard', 'satellite', 'hybrid'] as const
@@ -297,22 +309,57 @@ export default function PatrolMapScreen() {
     if (!location || code21Requests.length === 0) return code21Requests;
     return optimiseCode21Route(location, code21Requests);
   }, [location, code21Requests]);
+  const filteredVehicleMakes = useMemo(
+    () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 6),
+    [vehicleMakeQuery],
+  );
+  const filteredVehicleColours = useMemo(
+    () => searchFilterOptions(vehicleColourQuery, getVehicleColours(), 6),
+    [vehicleColourQuery],
+  );
+
+  const formattedDocument = useMemo(() => {
+    const fields = [
+      `Officer Number: ${officerNumber || "N/A"}`,
+      `Service Request #: ${serviceRequestNumber || "N/A"}`,
+      `Date: ${offenceDate || "N/A"}`,
+      `Time: ${offenceTime || "N/A"}`,
+      `Offence Type: ${code21Type || "N/A"}`,
+      `Address: ${selectedAddress?.label ?? "N/A"}`,
+      `Dispatch Notes: ${dispatchNotes || "N/A"}`,
+      `Vehicle Make: ${vehicleMake || "N/A"}`,
+      `Vehicle Colour: ${vehicleColour || "N/A"}`,
+      `Vehicle Rego: ${vehicleRego || "N/A"}`,
+      `Attendance Notes: ${attendanceNotes || "N/A"}`,
+      `PIN #: ${pinValue || "N/A"}`,
+    ];
+
+    return fields.join("\n");
+  }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
 
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) return;
 
     const payload = {
-      officerNumber: OFFICER_NUMBER,
+      officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER,
+      serviceRequestNumber,
       addressLabel: selectedAddress.label,
       latitude: selectedAddress.latitude,
       longitude: selectedAddress.longitude,
       requestTime: new Date(requestTime).toISOString(),
+      offenceDate,
+      offenceTime,
+      offenceType: code21Type,
       code21Type,
       dispatchNotes,
       attendanceNotes,
       pin: pinValue,
+      vehicleMake,
+      vehicleColour,
+      vehicleRego: vehicleRego.toUpperCase(),
       travelMode,
       description,
+      formattedDocument,
     };
 
     try {
@@ -334,16 +381,24 @@ export default function PatrolMapScreen() {
     setDispatchNotes("");
     setAttendanceNotes("");
     setPinValue("");
-  }, [attendanceNotes, code21Type, description, dispatchNotes, pinValue, requestTime, selectedAddress, travelMode]);
+    setServiceRequestNumber("");
+    setVehicleMake("");
+    setVehicleColour("");
+    setVehicleRego("");
+    setVehicleMakeQuery("");
+    setVehicleColourQuery("");
+  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, offenceDate, offenceTime, officerNumber, pinValue, requestTime, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
     setRequestTime(new Date().toISOString().slice(0, 16));
+    setOffenceDate(new Date().toISOString().slice(0, 10));
+    setOffenceTime(new Date().toISOString().slice(11, 16));
     setCode21ModalVisible(true);
   }, []);
 
   const loadCode21Requests = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ officerNumber: OFFICER_NUMBER });
+      const params = new URLSearchParams({ officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER });
       const response = await fetch(`/api/code21?${params.toString()}`);
       const body = await response.json();
       if (response.ok && Array.isArray(body.requests)) {
@@ -352,7 +407,7 @@ export default function PatrolMapScreen() {
     } catch {
       // ignore offline bootstrap errors
     }
-  }, []);
+  }, [officerNumber]);
 
   useEffect(() => {
     loadCode21Requests();
@@ -480,11 +535,20 @@ export default function PatrolMapScreen() {
               latitude: request.latitude,
               longitude: request.longitude,
             });
+            setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
+            setServiceRequestNumber(request.serviceRequestNumber || "");
             setRequestTime(request.requestTime.slice(0, 16));
-            setCode21Type(request.code21Type);
+            setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
+            setOffenceTime(request.offenceTime || request.requestTime.slice(11, 16));
+            setCode21Type(request.offenceType || request.code21Type);
             setDispatchNotes(request.dispatchNotes);
             setAttendanceNotes(request.attendanceNotes);
             setPinValue(request.pin);
+            setVehicleMake(request.vehicleMake || "");
+            setVehicleColour(request.vehicleColour || "");
+            setVehicleRego(request.vehicleRego || "");
+            setVehicleMakeQuery(request.vehicleMake || "");
+            setVehicleColourQuery(request.vehicleColour || "");
             setDescription(request.description);
             setTravelMode(request.travelMode);
             setCode21ModalVisible(true);
@@ -809,6 +873,13 @@ export default function PatrolMapScreen() {
             </View>
 
             <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false}>
+              <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={styles.modalInput} placeholder="Officer number" placeholderTextColor={Colors.dark.textMuted} />
+              <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={styles.modalInput} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
+              <View style={styles.rowInputs}>
+                <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
+                <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+              </View>
+              <Text style={styles.modalFieldLabel}>Offence type</Text>
               <TextInput
                 value={addressQuery}
                 onChangeText={(text) => {
@@ -847,8 +918,48 @@ export default function PatrolMapScreen() {
               </ScrollView>
               <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
               <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
+              <Text style={styles.modalFieldLabel}>Vehicle details</Text>
+              <TextInput
+                value={vehicleMakeQuery}
+                onChangeText={(text) => {
+                  setVehicleMakeQuery(text);
+                  setVehicleMake(text);
+                }}
+                style={styles.modalInput}
+                placeholder="Vehicle make"
+                placeholderTextColor={Colors.dark.textMuted}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
+                {filteredVehicleMakes.map((make) => (
+                  <TouchableOpacity key={make} style={styles.searchResultChip} onPress={() => { setVehicleMake(make); setVehicleMakeQuery(make); }}>
+                    <Text style={styles.searchResultText}>{make}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TextInput
+                value={vehicleColourQuery}
+                onChangeText={(text) => {
+                  setVehicleColourQuery(text);
+                  setVehicleColour(text);
+                }}
+                style={styles.modalInput}
+                placeholder="Vehicle colour"
+                placeholderTextColor={Colors.dark.textMuted}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
+                {filteredVehicleColours.map((colour) => (
+                  <TouchableOpacity key={colour} style={styles.searchResultChip} onPress={() => { setVehicleColour(colour); setVehicleColourQuery(colour); }}>
+                    <Text style={styles.searchResultText}>{colour}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TextInput value={vehicleRego} onChangeText={setVehicleRego} autoCapitalize="characters" style={styles.modalInput} placeholder="Vehicle rego" placeholderTextColor={Colors.dark.textMuted} />
               <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
-              <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN" placeholderTextColor={Colors.dark.textMuted} />
+              <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN # (if issued)" placeholderTextColor={Colors.dark.textMuted} />
+              <View style={styles.documentPreview}>
+                <Text style={styles.modalFieldLabel}>Formatted document preview</Text>
+                <Text style={styles.documentPreviewText}>{formattedDocument}</Text>
+              </View>
               <View style={styles.travelRow}>
                 <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
                 <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
@@ -1461,6 +1572,33 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 12,
     backgroundColor: Colors.dark.surfaceAlt,
+  },
+  rowInputs: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  rowInput: {
+    flex: 1,
+  },
+  modalFieldLabel: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  documentPreview: {
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    backgroundColor: Colors.dark.surface,
+    padding: 10,
+    gap: 6,
+  },
+  documentPreviewText: {
+    color: Colors.dark.text,
+    fontSize: 11,
+    lineHeight: 16,
   },
   typeScrollView: {
     maxHeight: 160,
