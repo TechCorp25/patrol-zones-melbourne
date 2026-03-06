@@ -110,3 +110,7 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Start Backend: `npm run server:dev` (port 5000)
 - Start Frontend: `npm run expo:dev` (port 8081)
 - Scan QR from Replit's URL bar to test on device via Expo Go
+
+## Security Operations
+
+- Secret rotation workflow: see `SECURITY_SECRETS.md`.

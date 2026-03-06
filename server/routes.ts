@@ -1,9 +1,67 @@
-import type { Express } from "express";
+import { insertUserSchema } from "@shared/schema";
+import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "node:http";
+import { z } from "zod";
+import { hashPassword, verifyPassword } from "./auth";
+import { storage } from "./storage";
 
 function isReadyForTraffic(): boolean {
   return true;
 }
+
+function buildAuthRateLimiter({
+  windowMs,
+  maxRequests,
+}: {
+  windowMs: number;
+  maxRequests: number;
+}): RequestHandler {
+  const attempts = new Map<string, { count: number; resetAt: number }>();
+
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip || "unknown";
+    const current = attempts.get(key);
+
+    if (!current || current.resetAt <= now) {
+      attempts.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    if (current.count >= maxRequests) {
+      const retryAfterSeconds = Math.ceil((current.resetAt - now) / 1000);
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      return res.status(429).json({
+        error: {
+          code: "rate_limited",
+          message: "Too many auth attempts, please try again later.",
+        },
+      });
+    }
+
+    current.count += 1;
+    attempts.set(key, current);
+
+    return next();
+  };
+}
+
+function parseBearerToken(authorizationHeader?: string): string | null {
+  if (!authorizationHeader) {
+    return null;
+  }
+
+  if (!authorizationHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  return authorizationHeader.slice("Bearer ".length).trim() || null;
+}
+
+const loginSchema = z.object({
+  username: z.string().min(3).max(64),
+  password: z.string().min(8).max(256),
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health/live", (_req, res) => {
@@ -19,6 +77,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(ready ? 200 : 503).json({
       status: ready ? "ready" : "not_ready",
       timestamp: new Date().toISOString(),
+    });
+  });
+
+  const authRateLimiter = buildAuthRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 10,
+  });
+
+  app.post("/api/auth/register", authRateLimiter, async (req, res) => {
+    const parsed = insertUserSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid registration request.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const existingUser = await storage.getUserByUsername(parsed.data.username);
+    if (existingUser) {
+      return res.status(409).json({
+        error: {
+          code: "username_taken",
+          message: "Username is already in use.",
+        },
+      });
+    }
+
+    const password = await hashPassword(parsed.data.password);
+    const user = await storage.createUser({
+      username: parsed.data.username,
+      password,
+    });
+
+    const session = await storage.createSession(user.id);
+
+    return res.status(201).json({
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+      session: {
+        token: session.token,
+      },
+    });
+  });
+
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
+    const parsed = loginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid login request.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const user = await storage.getUserByUsername(parsed.data.username);
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: "invalid_credentials",
+          message: "Invalid username or password.",
+        },
+      });
+    }
+
+    const matches = await verifyPassword(parsed.data.password, user.password);
+    if (!matches) {
+      return res.status(401).json({
+        error: {
+          code: "invalid_credentials",
+          message: "Invalid username or password.",
+        },
+      });
+    }
+
+    const session = await storage.createSession(user.id);
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+      session: {
+        token: session.token,
+      },
+    });
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    const token = parseBearerToken(req.header("authorization"));
+
+    if (token) {
+      await storage.deleteSession(token);
+    }
+
+    return res.status(204).send();
+  });
+
+  app.get("/api/auth/session", async (req, res) => {
+    const token = parseBearerToken(req.header("authorization"));
+
+    if (!token) {
+      return res.status(401).json({
+        error: {
+          code: "missing_token",
+          message: "Missing session token.",
+        },
+      });
+    }
+
+    const session = await storage.getSession(token);
+    if (!session) {
+      return res.status(401).json({
+        error: {
+          code: "invalid_token",
+          message: "Session token is invalid.",
+        },
+      });
+    }
+
+    const user = await storage.getUser(session.userId);
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: "invalid_session",
+          message: "Session is no longer valid.",
+        },
+      });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        username: user.username,
+      },
     });
   });
 
