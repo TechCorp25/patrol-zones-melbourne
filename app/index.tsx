@@ -86,7 +86,7 @@ export default function PatrolMapScreen() {
   const [addressSuggestions, setAddressSuggestions] = useState(() => searchAddressOptions(""));
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
   const [requestTime, setRequestTime] = useState(new Date().toISOString().slice(0, 16));
-  const [code21Type, setCode21Type] = useState<Code21Type>("Welfare Check");
+  const [code21Type, setCode21Type] = useState<Code21Type>("621 - Stopped in no parking");
   const [description, setDescription] = useState("");
   const [dispatchNotes, setDispatchNotes] = useState("");
   const [attendanceNotes, setAttendanceNotes] = useState("");
@@ -813,13 +813,15 @@ export default function PatrolMapScreen() {
             <Text style={styles.modalTitle}>Code21 Request</Text>
             <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
             <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
-            <View style={styles.typeRow}>
-              {getCode21Types().map((type) => (
-                <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
-                  <Text style={styles.typeChipText}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView style={styles.typeScrollView} nestedScrollEnabled>
+              <View style={styles.typeRow}>
+                {getCode21Types().map((type) => (
+                  <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
+                    <Text style={styles.typeChipText}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
             <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
             <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
             <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
@@ -1375,6 +1377,9 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 12,
     backgroundColor: Colors.dark.surfaceAlt,
+  },
+  typeScrollView: {
+    maxHeight: 160,
   },
   typeRow: {
     flexDirection: 'row',
