@@ -11,10 +11,9 @@ echo "▸ Installing Node.js dependencies..."
 npm ci
 echo "✓ Node modules installed"
 
-
 # ── 2. Python dependencies (for data scripts) ────
 echo "▸ Installing Python dependencies..."
-pip install --quiet --no-cache-dir \
+python3 -m pip install --quiet --no-cache-dir \
   orjson pyproj requests rtree shapely tqdm
 echo "✓ Python packages installed"
 
