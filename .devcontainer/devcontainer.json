@@ -1,12 +1,17 @@
 {
   "name": "Patrol Zones Melbourne",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
     }
   },
-  "forwardPorts": [5000, 8081],
+  "forwardPorts": [
+    5000,
+    8081
+  ],
   "portsAttributes": {
     "5000": {
       "label": "Express Backend",
