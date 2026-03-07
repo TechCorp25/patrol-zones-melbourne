@@ -12,8 +12,9 @@
     "server:prod": "NODE_ENV=production node server_dist/index.js",
     "db:push": "drizzle-kit push",
     "start": "npx expo start",
-    "lint": "npx expo lint",
-    "lint:fix": "npx expo lint --fix"
+    "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
+    "test": "node scripts/test-smoke.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/roboto-mono": "^0.4.1",

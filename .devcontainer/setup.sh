@@ -11,18 +11,14 @@ echo "▸ Installing Node.js dependencies..."
 npm ci
 echo "✓ Node modules installed"
 
-# ── 2. Patch-package (Metro basePath patches) ─────
-echo "▸ Applying patches..."
-npm run postinstall
-echo "✓ Patches applied"
 
-# ── 3. Python dependencies (for data scripts) ────
+# ── 2. Python dependencies (for data scripts) ────
 echo "▸ Installing Python dependencies..."
 pip install --quiet --no-cache-dir \
   orjson pyproj requests rtree shapely tqdm
 echo "✓ Python packages installed"
 
-# ── 4. Environment file for Codespaces ────────────
+# ── 3. Environment file for Codespaces ────────────
 ENVFILE=".env.codespaces"
 echo "▸ Creating $ENVFILE..."
 
