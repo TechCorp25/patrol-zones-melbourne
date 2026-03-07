@@ -201,7 +201,12 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     const platform = req.header("expo-platform");
+    const isDev = process.env.NODE_ENV !== "production";
+
     if (platform && (platform === "ios" || platform === "android")) {
+      if (isDev) {
+        return next();
+      }
       return serveExpoManifest(platform, res);
     }
 
