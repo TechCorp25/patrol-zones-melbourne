@@ -22,8 +22,27 @@ MODE="${1:-both}"
 ensure_node_dependencies() {
   if [ ! -d node_modules ] || [ ! -f node_modules/express/package.json ] || [ ! -f node_modules/expo/package.json ]; then
     echo "▸ Installing Node.js dependencies (npm ci)..."
-    npm ci
-    echo "✓ Node modules installed"
+
+    local max_attempts=3
+    local attempt=1
+
+    while [ "$attempt" -le "$max_attempts" ]; do
+      if npm ci --no-audit --no-fund; then
+        echo "✓ Node modules installed"
+        return
+      fi
+
+      if [ "$attempt" -lt "$max_attempts" ]; then
+        echo "⚠ npm ci failed on attempt ${attempt}/${max_attempts}; clearing npm cache and retrying..."
+        npm cache clean --force >/dev/null 2>&1 || true
+        rm -rf node_modules
+      fi
+
+      attempt=$((attempt + 1))
+    done
+
+    echo "✗ npm ci failed after ${max_attempts} attempts"
+    exit 1
   fi
 }
 
