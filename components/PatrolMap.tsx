@@ -178,7 +178,7 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
   ref,
 ) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
-    const isLightMap = resolvedMapType === 'standard';
+    const isLightMap = LIGHT_BASED_MAP_TYPES.has(resolvedMapType);
     const isDarkStyle = !isLightMap;
     const roundedHeading = useMemo(() => Math.round(heading), [heading]);
     const [showNumbers, setShowNumbers] = useState(false);

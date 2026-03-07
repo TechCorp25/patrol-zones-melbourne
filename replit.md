@@ -17,6 +17,9 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 ### Backend (Express + TypeScript)
 - Serves landing page and Expo manifest
 - Port 5000
+- **Database**: PostgreSQL via Drizzle ORM (`server/db.ts` + `server/storage.ts` — `DbStorage`)
+- **Tables**: `users`, `code21_requests` (schema in `shared/schema.ts`, managed by Drizzle)
+- **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage
 
 ## Key Files
 

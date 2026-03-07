@@ -60,6 +60,7 @@ const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
 const DEFAULT_OFFICER_NUMBER = "PZ-001";
 const IS_WEB = Platform.OS === "web";
+const API_BASE_URL = IS_WEB ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
 const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
 const SPRING_CONFIG = { damping: 20, stiffness: 180, overshootClamping: true };
@@ -346,7 +347,9 @@ export default function PatrolMapScreen() {
       addressLabel: selectedAddress.label,
       latitude: selectedAddress.latitude,
       longitude: selectedAddress.longitude,
-      requestTime: new Date(requestTime).toISOString(),
+      requestTime: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(requestTime)
+        ? new Date(requestTime + ':00Z').toISOString()
+        : new Date(requestTime).toISOString(),
       offenceDate,
       offenceTime,
       offenceType: code21Type,
@@ -363,7 +366,7 @@ export default function PatrolMapScreen() {
     };
 
     try {
-      const response = await fetch("/api/code21", {
+      const response = await fetch(`${API_BASE_URL}/api/code21`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -399,7 +402,7 @@ export default function PatrolMapScreen() {
   const loadCode21Requests = useCallback(async () => {
     try {
       const params = new URLSearchParams({ officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER });
-      const response = await fetch(`/api/code21?${params.toString()}`);
+      const response = await fetch(`${API_BASE_URL}/api/code21?${params.toString()}`);
       const body = await response.json();
       if (response.ok && Array.isArray(body.requests)) {
         setCode21Requests(body.requests);
@@ -879,7 +882,6 @@ export default function PatrolMapScreen() {
                 <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
                 <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
               </View>
-              <Text style={styles.modalFieldLabel}>Offence type</Text>
               <TextInput
                 value={addressQuery}
                 onChangeText={(text) => {
@@ -907,6 +909,7 @@ export default function PatrolMapScreen() {
 
               <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
               <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+              <Text style={styles.modalFieldLabel}>Offence type</Text>
               <ScrollView style={styles.typeScrollView} nestedScrollEnabled>
                 <View style={styles.typeRow}>
                   {getCode21Types().map((type) => (
@@ -974,12 +977,14 @@ export default function PatrolMapScreen() {
         </View>
       </Modal>
 
-      <View style={styles.routeCard}>
-        <Text style={styles.routeTitle}>Optimised Route ({travelMode === "foot" ? "on foot" : "vehicle"})</Text>
-        {routeOrderedRequests.slice(0, 4).map((request, index) => (
-          <Text key={request.id} style={styles.routeItem}>{index + 1}. {request.addressLabel}</Text>
-        ))}
-      </View>
+      {routeOrderedRequests.length > 0 && (
+        <View style={styles.routeCard}>
+          <Text style={styles.routeTitle}>Optimised Route ({travelMode === "foot" ? "on foot" : "vehicle"})</Text>
+          {routeOrderedRequests.slice(0, 4).map((request, index) => (
+            <Text key={request.id} style={styles.routeItem}>{index + 1}. {request.addressLabel}</Text>
+          ))}
+        </View>
+      )}
 
       {/* ── Zone Info Modal ── */}
       <ZoneInfoModal

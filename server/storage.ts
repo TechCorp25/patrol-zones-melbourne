@@ -1,15 +1,14 @@
-import { type User, type InsertUser, type Code21Request, type InsertCode21Request } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { type User, type InsertUser, type Code21Request, type InsertCode21Request, users, code21Requests } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
+import { db } from "./db";
 
 export interface Session {
   token: string;
   userId: string;
   createdAt: Date;
 }
-
-// modify the interface with any CRUD methods
-// you might need
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -22,32 +21,26 @@ export interface IStorage {
   getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+export class DbStorage implements IStorage {
   private sessions: Map<string, Session>;
-  private code21Requests: Map<string, Code21Request>;
 
   constructor() {
-    this.users = new Map();
     this.sessions = new Map();
-    this.code21Requests = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   async createSession(userId: string): Promise<Session> {
@@ -57,7 +50,6 @@ export class MemStorage implements IStorage {
       userId,
       createdAt: new Date(),
     };
-
     this.sessions.set(token, session);
     return session;
   }
@@ -72,21 +64,34 @@ export class MemStorage implements IStorage {
 
   async createCode21Request(request: InsertCode21Request): Promise<Code21Request> {
     const id = randomUUID();
-    const saved: Code21Request = {
+    const createdAt = new Date().toISOString();
+    const row = {
       ...request,
       id,
-      createdAt: new Date().toISOString(),
+      latitude: String(request.latitude),
+      longitude: String(request.longitude),
+      createdAt,
     };
-
-    this.code21Requests.set(id, saved);
-    return saved;
+    await db.insert(code21Requests).values(row);
+    return {
+      ...request,
+      id,
+      createdAt,
+    };
   }
 
   async getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]> {
-    return Array.from(this.code21Requests.values()).filter(
-      (request) => request.officerNumber === officerNumber,
-    );
+    const rows = await db
+      .select()
+      .from(code21Requests)
+      .where(eq(code21Requests.officerNumber, officerNumber));
+
+    return rows.map((row) => ({
+      ...row,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+    })) as unknown as Code21Request[];
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();
