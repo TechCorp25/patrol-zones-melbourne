@@ -1,5 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
@@ -218,6 +219,26 @@ function configureExpoAndLanding(app: express.Application) {
 
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
+
+  if (process.env.NODE_ENV !== "production") {
+    const metroProxy = createProxyMiddleware({
+      target: "http://localhost:8081",
+      changeOrigin: true,
+      ws: true,
+      on: {
+        error: (err, _req, res) => {
+          logStructured("warn", "Metro proxy error (bundler may still be starting)", {
+            message: (err as Error).message,
+          });
+          if (res && "writeHead" in res) {
+            (res as Response).status(502).send("Metro bundler not ready yet");
+          }
+        },
+      },
+    });
+    app.use(metroProxy);
+    logStructured("info", "Metro dev proxy configured → localhost:8081");
+  }
 
   logStructured("info", "Expo routing configured");
 }
