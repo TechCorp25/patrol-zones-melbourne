@@ -668,27 +668,27 @@ export default function PatrolMapScreen() {
           <Text style={styles.mapTypeLabel}>{MAP_TYPE_LABELS[mapTypeIndex]}</Text>
         </TouchableOpacity>
 
-        <View style={styles.overlayButtonsRight}>
-          {assignedZone && (
-            <TouchableOpacity
-              style={styles.zoneInfoBtn}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setZoneInfoVisible(true);
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="list-outline" size={20} color={Colors.dark.tint} />
-            </TouchableOpacity>
-          )}
-          <View style={styles.quickActionsCol}>
-            <TouchableOpacity
-              style={styles.code21Btn}
-              onPress={openCode21Modal}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.code21BtnText}>21</Text>
-            </TouchableOpacity>
+        <View style={styles.quickActionsCol}>
+          <TouchableOpacity
+            style={styles.code21Btn}
+            onPress={openCode21Modal}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.code21BtnText}>21</Text>
+          </TouchableOpacity>
+          <View style={styles.locateRow}>
+            {assignedZone && (
+              <TouchableOpacity
+                style={styles.zoneInfoBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setZoneInfoVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="list-outline" size={20} color={Colors.dark.tint} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.locateBtn}
               onPress={centerOnUser}
@@ -1200,15 +1200,15 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  overlayButtonsRight: {
-    flexDirection: "row",
-    alignItems: "center",
+  quickActionsCol: {
+    alignItems: "flex-end",
     gap: 8,
   },
-  quickActionsCol: {
+  locateRow: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
