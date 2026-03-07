@@ -8,7 +8,10 @@
       "version": "3.12"
     }
   },
-  "forwardPorts": [5000, 8081],
+  "forwardPorts": [
+    5000,
+    8081
+  ],
   "portsAttributes": {
     "5000": {
       "label": "Express Backend",

@@ -111,6 +111,18 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Start Frontend: `npm run expo:dev` (port 8081)
 - Scan QR from Replit's URL bar to test on device via Expo Go
 
+## AI Assistant Workflow Artifacts
+
+For AI-assisted repository health reviews, use:
+- `docs/symphony-repo-assessment-prompt.md`
+- `docs/symphony-assessment-report.md`
+
+These are workflow artifacts only and are not wired into application runtime.
+
+## Developer Tooling Baseline
+- Use current Expo/React Native-compatible VS Code tooling with support for Expo web debugging, EAS commands, and modern Metro verification behavior.
+- Validate Node.js major version compatibility with Expo SDK 54 before starting local packager tasks.
+
 ## Security Operations
 
 - Secret rotation workflow: see `SECURITY_SECRETS.md`.
