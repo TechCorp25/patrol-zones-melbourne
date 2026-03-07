@@ -23,7 +23,10 @@
     },
     "android": {
       "package": "com.patrolzones",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0A1628",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,7 +46,8 @@
         {
           "locationWhenInUsePermission": "Patrol Zones needs your location to show your position on the patrol map."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
