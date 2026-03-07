@@ -49,19 +49,59 @@ const CODE21_TYPES = [
 
 export type Code21Type = (typeof CODE21_TYPES)[number];
 
+const VEHICLE_MAKES = [
+  "Toyota",
+  "Ford",
+  "Hyundai",
+  "Kia",
+  "Mazda",
+  "Mitsubishi",
+  "Nissan",
+  "Subaru",
+  "Volkswagen",
+  "Mercedes-Benz",
+  "BMW",
+  "Audi",
+  "Honda",
+  "Lexus",
+  "Holden",
+] as const;
+
+const VEHICLE_COLOURS = [
+  "White",
+  "Black",
+  "Silver",
+  "Grey",
+  "Blue",
+  "Red",
+  "Green",
+  "Yellow",
+  "Orange",
+  "Brown",
+  "Gold",
+] as const;
+
 export interface Code21Request {
   id: string;
   officerNumber: string;
+  serviceRequestNumber: string;
   addressLabel: string;
   latitude: number;
   longitude: number;
+  offenceDate: string;
+  offenceTime: string;
   requestTime: string;
+  offenceType: Code21Type;
   code21Type: Code21Type;
   dispatchNotes: string;
   attendanceNotes: string;
   pin: string;
+  vehicleMake: string;
+  vehicleColour: string;
+  vehicleRego: string;
   travelMode: "foot" | "vehicle";
   description: string;
+  formattedDocument: string;
   createdAt: string;
 }
 
@@ -74,6 +114,23 @@ export function searchAddressOptions(query: string, limit = 8): AddressOption[] 
 
 export function getCode21Types(): readonly Code21Type[] {
   return CODE21_TYPES;
+}
+
+export function getVehicleMakes(): readonly string[] {
+  return VEHICLE_MAKES;
+}
+
+export function getVehicleColours(): readonly string[] {
+  return VEHICLE_COLOURS;
+}
+
+export function searchFilterOptions(query: string, options: readonly string[], limit = 8): string[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return options.slice(0, limit);
+  }
+
+  return options.filter((option) => option.toLowerCase().includes(normalized)).slice(0, limit);
 }
 
 export function optimiseCode21Route(
