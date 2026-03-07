@@ -1547,6 +1547,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   modalCard: {
+    flex: 1,
     backgroundColor: Colors.dark.surface,
     borderWidth: 1,
     borderColor: Colors.dark.border,
