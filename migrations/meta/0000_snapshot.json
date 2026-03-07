@@ -1,0 +1,208 @@
+{
+  "id": "6d21f996-c671-4e63-a418-945ddb2da254",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.code21_requests": {
+      "name": "code21_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "officer_number": {
+          "name": "officer_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_request_number": {
+          "name": "service_request_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "address_label": {
+          "name": "address_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_time": {
+          "name": "request_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offence_date": {
+          "name": "offence_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "offence_time": {
+          "name": "offence_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "offence_type": {
+          "name": "offence_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'621 - Stopped in no parking'"
+        },
+        "code21_type": {
+          "name": "code21_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dispatch_notes": {
+          "name": "dispatch_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attendance_notes": {
+          "name": "attendance_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pin": {
+          "name": "pin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "vehicle_make": {
+          "name": "vehicle_make",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "vehicle_colour": {
+          "name": "vehicle_colour",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "vehicle_rego": {
+          "name": "vehicle_rego",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "travel_mode": {
+          "name": "travel_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formatted_document": {
+          "name": "formatted_document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

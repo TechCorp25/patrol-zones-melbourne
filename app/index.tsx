@@ -99,6 +99,7 @@ export default function PatrolMapScreen() {
   const [dispatchNotes, setDispatchNotes] = useState("");
   const [attendanceNotes, setAttendanceNotes] = useState("");
   const [pinValue, setPinValue] = useState("");
+  const [pinIssued, setPinIssued] = useState(false);
   const [vehicleMakeQuery, setVehicleMakeQuery] = useState("");
   const [vehicleColourQuery, setVehicleColourQuery] = useState("");
   const [vehicleMake, setVehicleMake] = useState("");
@@ -332,11 +333,11 @@ export default function PatrolMapScreen() {
       `Vehicle Colour: ${vehicleColour || "N/A"}`,
       `Vehicle Rego: ${vehicleRego || "N/A"}`,
       `Attendance Notes: ${attendanceNotes || "N/A"}`,
-      `PIN #: ${pinValue || "N/A"}`,
+      ...(pinIssued ? [`PIN #: ${pinValue || "N/A"}`] : []),
     ];
 
     return fields.join("\n");
-  }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
 
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) return;
@@ -356,7 +357,7 @@ export default function PatrolMapScreen() {
       code21Type,
       dispatchNotes,
       attendanceNotes,
-      pin: pinValue,
+      pin: pinIssued ? pinValue : "",
       vehicleMake,
       vehicleColour,
       vehicleRego: vehicleRego.toUpperCase(),
@@ -384,18 +385,21 @@ export default function PatrolMapScreen() {
     setDispatchNotes("");
     setAttendanceNotes("");
     setPinValue("");
+    setPinIssued(false);
     setServiceRequestNumber("");
     setVehicleMake("");
     setVehicleColour("");
     setVehicleRego("");
     setVehicleMakeQuery("");
     setVehicleColourQuery("");
-  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, offenceDate, offenceTime, officerNumber, pinValue, requestTime, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, requestTime, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
     setRequestTime(new Date().toISOString().slice(0, 16));
     setOffenceDate(new Date().toISOString().slice(0, 10));
     setOffenceTime(new Date().toISOString().slice(11, 16));
+    setPinValue("");
+    setPinIssued(false);
     setCode21ModalVisible(true);
   }, []);
 
@@ -547,6 +551,7 @@ export default function PatrolMapScreen() {
             setDispatchNotes(request.dispatchNotes);
             setAttendanceNotes(request.attendanceNotes);
             setPinValue(request.pin);
+            setPinIssued(!!request.pin);
             setVehicleMake(request.vehicleMake || "");
             setVehicleColour(request.vehicleColour || "");
             setVehicleRego(request.vehicleRego || "");
@@ -958,7 +963,34 @@ export default function PatrolMapScreen() {
               </ScrollView>
               <TextInput value={vehicleRego} onChangeText={setVehicleRego} autoCapitalize="characters" style={styles.modalInput} placeholder="Vehicle rego" placeholderTextColor={Colors.dark.textMuted} />
               <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
-              <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN # (if issued)" placeholderTextColor={Colors.dark.textMuted} />
+              <TouchableOpacity
+                style={[styles.pinToggle, pinIssued && styles.pinToggleActive]}
+                onPress={() => {
+                  const next = !pinIssued;
+                  setPinIssued(next);
+                  if (!next) setPinValue("");
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={pinIssued ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
+                />
+                <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>
+                  PIN issued
+                </Text>
+              </TouchableOpacity>
+              {pinIssued && (
+                <TextInput
+                  value={pinValue}
+                  onChangeText={setPinValue}
+                  style={styles.modalInput}
+                  placeholder="PIN #"
+                  placeholderTextColor={Colors.dark.textMuted}
+                  keyboardType="number-pad"
+                />
+              )}
               <View style={styles.documentPreview}>
                 <Text style={styles.modalFieldLabel}>Formatted document preview</Text>
                 <Text style={styles.documentPreviewText}>{formattedDocument}</Text>
@@ -1627,6 +1659,29 @@ const styles = StyleSheet.create({
   typeChipText: {
     color: Colors.dark.textSecondary,
     fontSize: 10,
+  },
+  pinToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: Colors.dark.surfaceAlt,
+  },
+  pinToggleActive: {
+    borderColor: Colors.dark.tint + "66",
+    backgroundColor: Colors.dark.tintDim,
+  },
+  pinToggleText: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 12,
+  },
+  pinToggleTextActive: {
+    color: Colors.dark.tint,
   },
   travelRow: {
     flexDirection: 'row',
