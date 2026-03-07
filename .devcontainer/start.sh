@@ -18,6 +18,15 @@ fi
 
 MODE="${1:-both}"
 
+
+ensure_node_dependencies() {
+  if [ ! -d node_modules ] || [ ! -f node_modules/express/package.json ] || [ ! -f node_modules/expo/package.json ]; then
+    echo "▸ Installing Node.js dependencies (npm ci)..."
+    npm ci
+    echo "✓ Node modules installed"
+  fi
+}
+
 start_backend() {
   echo "▸ Starting Express backend on port ${PORT:-5000}..."
   npx tsx server/index.ts
@@ -31,9 +40,11 @@ start_frontend() {
 
 case "$MODE" in
   backend)
+    ensure_node_dependencies
     start_backend
     ;;
   frontend)
+    ensure_node_dependencies
     start_frontend
     ;;
   both)
@@ -48,6 +59,8 @@ case "$MODE" in
       echo "Done."
     }
     trap cleanup EXIT INT TERM
+
+    ensure_node_dependencies
 
     start_backend &
     BACKEND_PID=$!
