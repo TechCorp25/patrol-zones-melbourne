@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { CODE21_TYPES } from "../constants/offenceTypes";
 
 export const users = pgTable("users", {
   id: varchar("id")
@@ -51,70 +52,8 @@ export const insertCode21RequestSchema = createInsertSchema(code21Requests)
     requestTime: z.string().datetime(),
     offenceDate: z.string().optional().default(""),
     offenceTime: z.string().optional().default(""),
-    offenceType: z.enum([
-      "621 - Stopped in no parking",
-      "623 - Stopped on painted island",
-      "624 - Stopped near tram stop sign",
-      "626 - Parked across driveway",
-      "627 - Stopped near safety zone",
-      "701 - Overstayed time limit",
-      "702 - Meter expired / failed to pay",
-      "704 - Stopped in bicycle parking area",
-      "705 - Stopped in motorcycle parking area",
-      "706 - Parked contrary to parking area requirements",
-      "711 - Parked outside bay",
-      "715 - Stopped on pedestrian crossing",
-      "716 - Stopped before pedestrian crossing",
-      "717 - Stopped after pedestrian crossing",
-      "718 - Stopped before bicycle crossing",
-      "719 - Stopped after bicycle crossing",
-      "720 - Stopped in loading zone",
-      "721 - Overstayed loading zone",
-      "722 - Overstayed loading zone sign time",
-      "723 - Stopped in truck zone",
-      "726 - Stopped in taxi zone",
-      "727 - Stopped in bus zone",
-      "728 - Stopped in permit zone",
-      "729 - Double parked",
-      "730 - Stopped near fire hydrant",
-      "735 - Stopped after bus stop sign",
-      "736 - Stopped on bicycle path",
-      "737 - Stopped on footpath",
-      "742 - Stopped near traffic lights intersection",
-      "758 - Stopped at yellow line",
-    ]).default("621 - Stopped in no parking"),
-    code21Type: z.enum([
-      "621 - Stopped in no parking",
-      "623 - Stopped on painted island",
-      "624 - Stopped near tram stop sign",
-      "626 - Parked across driveway",
-      "627 - Stopped near safety zone",
-      "701 - Overstayed time limit",
-      "702 - Meter expired / failed to pay",
-      "704 - Stopped in bicycle parking area",
-      "705 - Stopped in motorcycle parking area",
-      "706 - Parked contrary to parking area requirements",
-      "711 - Parked outside bay",
-      "715 - Stopped on pedestrian crossing",
-      "716 - Stopped before pedestrian crossing",
-      "717 - Stopped after pedestrian crossing",
-      "718 - Stopped before bicycle crossing",
-      "719 - Stopped after bicycle crossing",
-      "720 - Stopped in loading zone",
-      "721 - Overstayed loading zone",
-      "722 - Overstayed loading zone sign time",
-      "723 - Stopped in truck zone",
-      "726 - Stopped in taxi zone",
-      "727 - Stopped in bus zone",
-      "728 - Stopped in permit zone",
-      "729 - Double parked",
-      "730 - Stopped near fire hydrant",
-      "735 - Stopped after bus stop sign",
-      "736 - Stopped on bicycle path",
-      "737 - Stopped on footpath",
-      "742 - Stopped near traffic lights intersection",
-      "758 - Stopped at yellow line",
-    ]),
+    offenceType: z.enum([...CODE21_TYPES] as [string, ...string[]]).default("621 - Stopped in no parking"),
+    code21Type: z.enum([...CODE21_TYPES] as [string, ...string[]]),
     serviceRequestNumber: z.string().optional().default(""),
     pin: z.string().optional().default(""),
     vehicleMake: z.string().optional().default(""),
@@ -125,8 +64,16 @@ export const insertCode21RequestSchema = createInsertSchema(code21Requests)
     status: z.enum(["in_progress", "complete"]).optional().default("in_progress"),
   });
 
+export const sessions = pgTable("sessions", {
+  token: varchar("token").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCode21Request = z.infer<typeof insertCode21RequestSchema>;
 export type Code21Request = InsertCode21Request & { id: string; createdAt: string };
 export type Code21Status = "in_progress" | "complete";
+export type Session = typeof sessions.$inferSelect;

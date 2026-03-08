@@ -1,14 +1,12 @@
-import { eq, or, ilike } from "drizzle-orm";
-import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, users, code21Requests } from "@shared/schema";
+import { eq, lt, or, ilike } from "drizzle-orm";
+import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, type Session, users, code21Requests, sessions } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
 import { db } from "./db";
 
-export interface Session {
-  token: string;
-  userId: string;
-  createdAt: Date;
-}
+export type { Session };
+
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -17,6 +15,7 @@ export interface IStorage {
   createSession(userId: string): Promise<Session>;
   getSession(token: string): Promise<Session | undefined>;
   deleteSession(token: string): Promise<void>;
+  purgeExpiredSessions(): Promise<void>;
   createCode21Request(request: InsertCode21Request): Promise<Code21Request>;
   getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]>;
   updateCode21RequestStatus(id: string, status: Code21Status): Promise<Code21Request | null>;
@@ -24,12 +23,6 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
-  private sessions: Map<string, Session>;
-
-  constructor() {
-    this.sessions = new Map();
-  }
-
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
@@ -47,21 +40,34 @@ export class DbStorage implements IStorage {
 
   async createSession(userId: string): Promise<Session> {
     const token = generateSessionToken();
+    const now = new Date();
     const session: Session = {
       token,
       userId,
-      createdAt: new Date(),
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
     };
-    this.sessions.set(token, session);
+    await db.insert(sessions).values(session);
     return session;
   }
 
   async getSession(token: string): Promise<Session | undefined> {
-    return this.sessions.get(token);
+    const result = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+    const row = result[0];
+    if (!row) return undefined;
+    if (row.expiresAt < new Date().toISOString()) {
+      await db.delete(sessions).where(eq(sessions.token, token));
+      return undefined;
+    }
+    return row;
   }
 
   async deleteSession(token: string): Promise<void> {
-    this.sessions.delete(token);
+    await db.delete(sessions).where(eq(sessions.token, token));
+  }
+
+  async purgeExpiredSessions(): Promise<void> {
+    await db.delete(sessions).where(lt(sessions.expiresAt, new Date().toISOString()));
   }
 
   async createCode21Request(request: InsertCode21Request): Promise<Code21Request> {

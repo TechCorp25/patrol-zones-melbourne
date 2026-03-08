@@ -29,7 +29,7 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 - Serves landing page and Expo manifest
 - Port 5000
 - **Database**: PostgreSQL via Drizzle ORM (`server/db.ts` + `server/storage.ts` — `DbStorage`)
-- **Tables**: `users`, `code21_requests` (schema in `shared/schema.ts`, managed by Drizzle)
+- **Tables**: `users`, `code21_requests`, `sessions` (schema in `shared/schema.ts`, managed by Drizzle)
 - **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage
 
 ## Key Files
@@ -158,10 +158,14 @@ Applied a full-scale evidence-based assessment and optimisation pass. All change
 - `app/_layout.tsx` — Removed redundant `RootLayoutNav` inner component; the `Stack` is now inlined directly, eliminating an extra function allocation per mount
 - `app/index.tsx` — Removed empty `onMapReady={() => {}}` no-op prop; was creating a new function reference on every render for no effect
 
-**Known Remaining Risks**
-- Sessions are stored in-memory (`Map` in `DbStorage`), not persisted to the database — sessions are lost on server restart. This is a known design choice. Migration path: add a `sessions` table and persist via Drizzle.
-- `CODE21_TYPES` enum is duplicated between `constants/code21.ts` and `shared/schema.ts` — a single source of truth would reduce maintenance risk, but requires a shared-boundary refactor.
-- `constants/streets.ts` and `constants/streetNumbers.ts` both define the same intersection coordinate data — safe to deduplicate in a future refactor.
+**Production-Readiness Pass (2026-03-08)**
+Applied five targeted hardening changes. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and end-to-end smoke test.
+
+- `server/index.ts` — Added `app.set("trust proxy", 1)` so `req.ip` resolves the real client IP behind Replit's reverse proxy; without this the rate limiter keyed all requests to the same proxy IP
+- `server/index.ts` — Fixed Metro dev proxy catching all `/api/*` paths before Express route handlers; added an explicit guard so API requests reach their handlers
+- `shared/schema.ts`, `server/storage.ts` — Sessions now persisted to a `sessions` DB table (token, userId, createdAt, expiresAt); 30-day TTL; expired sessions are lazily deleted on read; a scheduled purge fires on startup and every 6 hours
+- `constants/offenceTypes.ts` (new) — `CODE21_TYPES as const` extracted to a dependency-free file; `shared/schema.ts` and `constants/code21.ts` both import from it, eliminating the duplicate enum list
+- `constants/intersections.ts` (new) — Shared Melbourne CBD intersection coordinates extracted from `streets.ts` and `streetNumbers.ts`; both files now import the single source, eliminating ~200 lines of duplicated coordinate data
 
 ---
 

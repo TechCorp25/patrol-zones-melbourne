@@ -11,6 +11,7 @@ import {
   logStructured,
 } from "./observability";
 import { validateEnvGuardrails } from "./env";
+import { storage } from "./storage";
 
 const app = express();
 
@@ -241,7 +242,11 @@ function configureExpoAndLanding(app: express.Application) {
         },
       },
     });
-    app.use(metroProxy);
+    // Exclude /api routes so they reach Express handlers, not Metro
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith("/api")) return next();
+      return metroProxy(req, res, next);
+    });
     logStructured("info", "Metro dev proxy configured → localhost:8081");
   }
 
@@ -283,6 +288,10 @@ function setupErrorHandler(app: express.Application) {
 (async () => {
   validateEnvGuardrails();
 
+  // Trust the first proxy hop so req.ip resolves the real client IP
+  // behind Replit's reverse proxy (mTLS termination layer)
+  app.set("trust proxy", 1);
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
@@ -292,6 +301,10 @@ function setupErrorHandler(app: express.Application) {
   const server = await registerRoutes(app);
 
   setupErrorHandler(app);
+
+  // Purge stale sessions on startup and then every 6 hours
+  await storage.purgeExpiredSessions();
+  setInterval(() => { void storage.purgeExpiredSessions(); }, 6 * 60 * 60 * 1000);
 
   const port = parseInt(process.env.PORT || "5000", 10);
   server.listen(
