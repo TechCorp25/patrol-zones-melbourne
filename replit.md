@@ -1,5 +1,16 @@
 # Patrol Zones — Melbourne CBD
 
+## Non-Negotiable Code Quality Standards
+
+These requirements apply to **all** code changes in this project without exception — new files, updates, improvements, refactors, and bug fixes alike.
+
+1. **Best in class quality** — code must be well-structured, readable, and maintainable. No shortcuts, no dead code, no commented-out blocks left behind.
+2. **Modern industry best practices** — follow current TypeScript, React Native, and Node.js conventions. Use appropriate patterns (hooks, memoisation, optimistic updates, etc.) where they apply.
+3. **No breaking changes** — every change must retain all existing features and functionality. Regressions are not acceptable.
+4. **Production ready** — all code must be TypeScript-clean (zero `tsc --noEmit` errors), free of runtime exceptions, resilient to edge cases, and tested before delivery.
+
+---
+
 ## Project Overview
 A mobile-first React Native (Expo) app for Melbourne City Council patrol officers. Provides real-time GPS location on a Melbourne CBD patrol zone map, a live magnetic compass, and daily zone assignment management.
 
