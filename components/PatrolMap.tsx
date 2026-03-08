@@ -1,4 +1,4 @@
-import React, { forwardRef, memo, useMemo, useState, useCallback } from 'react';
+import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
 import MapView, { Polygon, Marker, Circle, Region } from "react-native-maps";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
@@ -92,12 +92,53 @@ function saturateHexColor(hex: string, boost: number) {
   return `#${toHex(nextR)}${toHex(nextG)}${toHex(nextB)}`;
 }
 
-const DestinationPin = memo(function DestinationPin() {
+const DestinationPin = memo(function DestinationPin({ preview = false }: { preview?: boolean }) {
   return (
     <View style={styles.pinContainer}>
-      <View style={styles.pinHead} />
-      <View style={styles.pinNeedle} />
+      <View style={[styles.pinHead, preview && styles.pinHeadPreview]} />
+      <View style={[styles.pinNeedle, preview && styles.pinNeedlePreview]} />
     </View>
+  );
+});
+
+/**
+ * Wraps a single destination Marker and manages its own tracksViewChanges lifecycle.
+ *
+ * Starts with tracksViewChanges=true so the native layer has time to fully render
+ * the custom View into a stable bitmap, then locks it to false after 500 ms to
+ * prevent unnecessary re-renders on pan/zoom.  Each marker is independent, which
+ * eliminates the multi-marker race condition where simultaneous snapshots would
+ * capture blank views.
+ */
+const DestinationMarker = memo(function DestinationMarker({
+  destination,
+  onPress,
+  onLongPress,
+}: {
+  destination: { id: string; latitude: number; longitude: number; title: string; subtitle?: string };
+  onPress?: () => void;
+  onLongPress?: () => void;
+}) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setTracksViewChanges(false), 500);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  return (
+    <Marker
+      identifier={destination.id}
+      coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
+      anchor={{ x: 0.5, y: 1 }}
+      title={destination.title}
+      description={destination.subtitle}
+      tracksViewChanges={tracksViewChanges}
+      onPress={onPress}
+      onCalloutPress={onLongPress}
+    >
+      <DestinationPin />
+    </Marker>
   );
 });
 
@@ -218,33 +259,25 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
         <StreetNumberMarkers visible={showNumbers} dark={isDarkStyle} />
 
         {destinations.map((destination) => (
-          <Marker
+          <DestinationMarker
             key={destination.id}
-            coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
-            anchor={{ x: 0.5, y: 1 }}
-            title={destination.title}
-            description={destination.subtitle}
-            tracksViewChanges={false}
+            destination={destination}
             onPress={() => onDestinationPress?.(destination.id)}
-            onCalloutPress={() => onDestinationLongPress?.(destination.id)}
-          >
-            <DestinationPin />
-          </Marker>
+            onLongPress={() => onDestinationLongPress?.(destination.id)}
+          />
         ))}
 
         {previewPin && (
           <Marker
             key="preview-pin"
+            identifier="preview-pin"
             coordinate={{ latitude: previewPin.latitude, longitude: previewPin.longitude }}
             anchor={{ x: 0.5, y: 1 }}
             title={previewPin.label}
             description="Code 21 address"
-            tracksViewChanges={false}
+            tracksViewChanges
           >
-            <View style={styles.pinContainer}>
-              <View style={[styles.pinHead, styles.pinHeadPreview]} />
-              <View style={[styles.pinNeedle, styles.pinNeedlePreview]} />
-            </View>
+            <DestinationPin preview />
           </Marker>
         )}
 
@@ -299,30 +332,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pinHead: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.dark.warning,
-    borderWidth: 2.5,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.dark.danger,
+    borderWidth: 3,
     borderColor: "#ffffff",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.55,
+    shadowRadius: 4,
+    elevation: 8,
   },
   pinHeadPreview: {
     backgroundColor: Colors.dark.tint,
+    borderColor: "#ffffff",
   },
   pinNeedle: {
     width: 0,
     height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 8,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: Colors.dark.warning,
+    borderTopColor: Colors.dark.danger,
     marginTop: -1,
   },
   pinNeedlePreview: {
