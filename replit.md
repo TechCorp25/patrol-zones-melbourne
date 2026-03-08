@@ -175,6 +175,17 @@ Three targeted fixes in `app/index.tsx`. All verified via `tsc --noEmit` (zero e
 - Unhandled optimisation rejection — `optimiseWithTerrainAndSLA` promise was chained with `.then()` only; added `.catch()` that falls back to the unoptimised request order so a transient elevation API failure can't silently crash the routing chain.
 - `Linking.openURL` unhandled rejection — wrapped in `.catch()` to show an `Alert` if Google Maps cannot be opened on the device.
 
+**Full Codebase Audit Pass (2026-03-08)**
+Applied comprehensive audit fixes across frontend and backend. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and smoke test.
+
+- `app/index.tsx` — Fixed stale `SCREEN_HEIGHT`/`PANEL_MAX` module-scope constants that never updated on screen size changes; moved to component-scope `windowDimensions`/`panelMax` computed from `Dimensions.get("window")` each render
+- `app/index.tsx` — Fixed `modalContentWidth` `useMemo` with empty deps `[]`; now properly depends on `windowDimensions.width` so the horizontal ScrollView paging width updates when the window dimensions change
+- `app/index.tsx` — Removed `marginLeft: 'auto' as any` type cast on `routeSpinner` style; React Native's `marginLeft` type accepts `'auto'` natively
+- `server/storage.ts` — Fixed SQL injection vulnerability in `searchCode21Archive`: user-supplied `%`, `_`, and `\` characters in ILIKE patterns are now escaped before wrapping in `%...%`
+- `server/storage.ts` — Added `LIMIT 100` to archive search query and `LIMIT 500` to officer number query to prevent unbounded result sets
+
+**Known remaining gap**: Code21 API endpoints (`POST /api/code21`, `GET /api/code21`, `PATCH /api/code21/:id`, `GET /api/code21/archive`) are not gated by session authentication. The auth infrastructure (register/login/session endpoints) exists but is not applied to Code21 routes. This is a pre-existing architectural gap, not a regression.
+
 **Startup Crash Fix (2026-03-08) — React Compiler + Reanimated worklet ordering**
 Fixed `Exception in HostFunction:<unknown>` crash that caused the app to crash immediately after the main screen rendered on iOS Expo Go.
 

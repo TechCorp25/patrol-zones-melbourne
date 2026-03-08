@@ -52,9 +52,7 @@ import {
   type Code21Type,
 } from "@/constants/code21";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PANEL_MIN = 196;
-const PANEL_MAX = SCREEN_HEIGHT * 0.55;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
@@ -285,6 +283,8 @@ export default function PatrolMapScreen() {
   const lastHeadingTimeRef = useRef(0);
   const locationRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
+  const windowDimensions = Dimensions.get("window");
+  const panelMax = windowDimensions.height * 0.55;
   const panelHeight = useSharedValue(PANEL_MIN);
   const safeBottom = insets.bottom > 0 ? insets.bottom : 8;
   const minOverlayBottom = safeBottom + PULL_TAB_HEIGHT + 12;
@@ -384,10 +384,10 @@ export default function PatrolMapScreen() {
       panelHeight.value = withSpring(PANEL_MIN, SPRING_CONFIG);
       setPanelExpanded(false);
     } else {
-      panelHeight.value = withSpring(PANEL_MAX, SPRING_CONFIG);
+      panelHeight.value = withSpring(panelMax, SPRING_CONFIG);
       setPanelExpanded(true);
     }
-  }, [panelExpanded, panelMinimized, panelHeight]);
+  }, [panelExpanded, panelMinimized, panelHeight, panelMax]);
 
   const onMinimizeComplete = useCallback((token: number) => {
     if (token === minimizeTokenRef.current) {
@@ -573,8 +573,8 @@ export default function PatrolMapScreen() {
   }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
 
   const modalContentWidth = useMemo(
-    () => Math.min(Dimensions.get("window").width - 40, 420),
-    [],
+    () => Math.min(windowDimensions.width - 40, 420),
+    [windowDimensions.width],
   );
 
   const scrollToTab = useCallback(
@@ -2859,7 +2859,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   routeSpinner: {
-    marginLeft: 'auto' as any,
+    marginLeft: 'auto',
   },
   routeSummary: {
     color: Colors.dark.textSecondary,

@@ -92,7 +92,8 @@ export class DbStorage implements IStorage {
     const rows = await db
       .select()
       .from(code21Requests)
-      .where(eq(code21Requests.officerNumber, officerNumber));
+      .where(eq(code21Requests.officerNumber, officerNumber))
+      .limit(500);
 
     return rows.map((row) => ({
       ...row,
@@ -118,7 +119,8 @@ export class DbStorage implements IStorage {
   }
 
   async searchCode21Archive(query: string): Promise<Code21Request[]> {
-    const pattern = `%${query}%`;
+    const escaped = query.replace(/[%_\\]/g, (ch) => `\\${ch}`);
+    const pattern = `%${escaped}%`;
     const rows = await db
       .select()
       .from(code21Requests)
@@ -127,7 +129,8 @@ export class DbStorage implements IStorage {
           ilike(code21Requests.serviceRequestNumber, pattern),
           ilike(code21Requests.officerNumber, pattern),
         ),
-      );
+      )
+      .limit(100);
 
     return rows.map((row) => ({
       ...row,
