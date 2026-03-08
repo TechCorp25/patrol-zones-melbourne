@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, or, ilike } from "drizzle-orm";
 import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, users, code21Requests } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
@@ -20,6 +20,7 @@ export interface IStorage {
   createCode21Request(request: InsertCode21Request): Promise<Code21Request>;
   getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]>;
   updateCode21RequestStatus(id: string, status: Code21Status): Promise<Code21Request | null>;
+  searchCode21Archive(query: string): Promise<Code21Request[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -108,6 +109,25 @@ export class DbStorage implements IStorage {
       latitude: Number(rows[0].latitude),
       longitude: Number(rows[0].longitude),
     } as unknown as Code21Request;
+  }
+
+  async searchCode21Archive(query: string): Promise<Code21Request[]> {
+    const pattern = `%${query}%`;
+    const rows = await db
+      .select()
+      .from(code21Requests)
+      .where(
+        or(
+          ilike(code21Requests.serviceRequestNumber, pattern),
+          ilike(code21Requests.officerNumber, pattern),
+        ),
+      );
+
+    return rows.map((row) => ({
+      ...row,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+    })) as unknown as Code21Request[];
   }
 }
 

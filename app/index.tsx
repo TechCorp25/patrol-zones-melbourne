@@ -111,7 +111,11 @@ export default function PatrolMapScreen() {
   const [documentViewVisible, setDocumentViewVisible] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
-  const [activeModalTab, setActiveModalTab] = useState<0 | 1>(0);
+  const [activeModalTab, setActiveModalTab] = useState<0 | 1 | 2>(0);
+  const [completedTimestamps, setCompletedTimestamps] = useState<Record<string, number>>({});
+  const [archiveQuery, setArchiveQuery] = useState("");
+  const [archiveResults, setArchiveResults] = useState<Code21Request[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const tabScrollRef = useRef<ScrollView>(null);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
@@ -332,9 +336,21 @@ export default function PatrolMapScreen() {
   }, [streetPosition]);
 
   const inProgressRequests = useMemo(
-    () => code21Requests.filter((r) => r.status !== "complete"),
+    () => code21Requests.filter((r) => r.status === "in_progress"),
     [code21Requests],
   );
+
+  const visibleCode21Requests = useMemo(() => {
+    const todayStr = new Date().toDateString();
+    const active = code21Requests.filter((r) => r.status === "in_progress");
+    const completedToday = code21Requests.filter(
+      (r) =>
+        r.status === "complete" &&
+        completedTimestamps[r.id] !== undefined &&
+        new Date(completedTimestamps[r.id]).toDateString() === todayStr,
+    );
+    return [...active, ...completedToday];
+  }, [code21Requests, completedTimestamps]);
 
   const routeOrderedRequests = useMemo(() => {
     if (!location || inProgressRequests.length === 0) return inProgressRequests;
@@ -406,7 +422,7 @@ export default function PatrolMapScreen() {
   );
 
   const scrollToTab = useCallback(
-    (tab: 0 | 1) => {
+    (tab: 0 | 1 | 2) => {
       tabScrollRef.current?.scrollTo({ x: tab * modalContentWidth, animated: true });
       setActiveModalTab(tab);
     },
@@ -417,6 +433,7 @@ export default function PatrolMapScreen() {
     setCode21Requests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "complete" as const } : r)),
     );
+    setCompletedTimestamps((prev) => ({ ...prev, [id]: Date.now() }));
     try {
       await fetch(`${API_BASE_URL}/api/code21/${id}`, {
         method: "PATCH",
@@ -427,6 +444,26 @@ export default function PatrolMapScreen() {
       // Local state already updated; server will be consistent on next load
     }
   }, []);
+
+  const searchArchive = useCallback(async () => {
+    if (!archiveQuery.trim()) {
+      setArchiveResults([]);
+      return;
+    }
+    setArchiveLoading(true);
+    try {
+      const params = new URLSearchParams({ q: archiveQuery.trim() });
+      const response = await fetch(`${API_BASE_URL}/api/code21/archive?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json() as { requests: Code21Request[] };
+        setArchiveResults(data.requests);
+      }
+    } catch {
+      // Fail silently
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, [archiveQuery]);
 
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) {
@@ -566,6 +603,23 @@ export default function PatrolMapScreen() {
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code21ModalVisible]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const todayStr = new Date().toDateString();
+      setCompletedTimestamps((prev) => {
+        const filtered: Record<string, number> = {};
+        for (const [id, ts] of Object.entries(prev)) {
+          if (new Date(ts).toDateString() === todayStr) {
+            filtered[id] = ts;
+          }
+        }
+        if (Object.keys(filtered).length === Object.keys(prev).length) return prev;
+        return filtered;
+      });
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {
@@ -1063,6 +1117,15 @@ export default function PatrolMapScreen() {
                   {`IN PROGRESS${inProgressRequests.length > 0 ? ` (${inProgressRequests.length})` : ""}`}
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalTab, activeModalTab === 2 && styles.modalTabActive]}
+                onPress={() => scrollToTab(2)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modalTabText, activeModalTab === 2 && styles.modalTabTextActive]}>
+                  ARCHIVE
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* ── Swipeable Content ── */}
@@ -1076,7 +1139,7 @@ export default function PatrolMapScreen() {
               contentContainerStyle={styles.modalSwipeableContent}
               onMomentumScrollEnd={(e) => {
                 const page = Math.round(e.nativeEvent.contentOffset.x / modalContentWidth);
-                setActiveModalTab(page === 0 ? 0 : 1);
+                setActiveModalTab((page <= 0 ? 0 : page >= 2 ? 2 : page) as 0 | 1 | 2);
               }}
             >
               {/* ── Tab 0: New / Edit Form ── */}
@@ -1271,61 +1334,133 @@ export default function PatrolMapScreen() {
                   showsVerticalScrollIndicator={false}
                   nestedScrollEnabled
                 >
-                  {inProgressRequests.length === 0 ? (
+                  {visibleCode21Requests.length === 0 ? (
                     <View style={styles.inProgressEmpty}>
                       <Ionicons name="checkmark-circle-outline" size={44} color={Colors.dark.textMuted} />
                       <Text style={styles.inProgressEmptyText}>No active Code 21 requests</Text>
                       <Text style={styles.inProgressEmptyHint}>Saved requests will appear here until marked complete</Text>
                     </View>
                   ) : (
-                    inProgressRequests.map((req) => (
-                      <View key={req.id} style={styles.inProgressItem}>
-                        <View style={styles.inProgressBar} />
+                    visibleCode21Requests.map((req) => {
+                      const isDone = req.status === "complete";
+                      return (
+                        <View key={req.id} style={[styles.inProgressItem, isDone && styles.inProgressItemDone]}>
+                          <View style={[styles.inProgressBar, isDone && styles.inProgressBarDone]} />
+                          <View style={styles.inProgressInfo}>
+                            <Text style={[styles.inProgressAddress, isDone && styles.inProgressTextDone]} numberOfLines={1}>{req.addressLabel}</Text>
+                            <Text style={[styles.inProgressType, isDone && styles.inProgressTextDone]} numberOfLines={1}>{req.offenceType || req.code21Type}</Text>
+                            <Text style={[styles.inProgressMeta, isDone && styles.inProgressTextDone]}>{req.offenceDate}{"  "}{req.offenceTime}</Text>
+                          </View>
+                          <View style={styles.inProgressActions}>
+                            {!isDone && (
+                              <TouchableOpacity
+                                style={styles.inProgressEditBtn}
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                  const addr = { label: req.addressLabel, latitude: req.latitude, longitude: req.longitude };
+                                  setSelectedAddress(addr);
+                                  setLastSelectedAddress(addr);
+                                  setAddressQuery(req.addressLabel);
+                                  setAddressDropdownVisible(false);
+                                  setOfficerNumber(req.officerNumber || DEFAULT_OFFICER_NUMBER);
+                                  setServiceRequestNumber(req.serviceRequestNumber || "");
+                                  setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
+                                  setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
+                                  setCode21Type(req.offenceType || req.code21Type);
+                                  setDispatchNotes(req.dispatchNotes);
+                                  setAttendanceNotes(req.attendanceNotes);
+                                  setPinValue(req.pin);
+                                  setPinIssued(!!req.pin);
+                                  setVehicleMake(req.vehicleMake || "");
+                                  setVehicleColour(req.vehicleColour || "");
+                                  setVehicleRego(req.vehicleRego || "");
+                                  setVehicleMakeQuery(req.vehicleMake || "");
+                                  setVehicleColourQuery(req.vehicleColour || "");
+                                  setOffenceTypeQuery("");
+                                  setDescription(req.description);
+                                  setTravelMode(req.travelMode);
+                                  setEditingRequestId(req.id);
+                                  scrollToTab(0);
+                                }}
+                              >
+                                <Ionicons name="create-outline" size={19} color={Colors.dark.textSecondary} />
+                              </TouchableOpacity>
+                            )}
+                            {isDone ? (
+                              <View style={styles.inProgressCompleteBtn}>
+                                <Ionicons name="checkmark-circle" size={22} color={Colors.dark.textMuted} />
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.inProgressCompleteBtn}
+                                activeOpacity={0.7}
+                                onPress={() => markCode21Complete(req.id)}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={22} color={Colors.dark.tint} />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </View>
+
+              {/* ── Tab 2: Archive Search ── */}
+              <View style={[styles.modalTabPage, { width: modalContentWidth }]}>
+                <View style={styles.archiveSearchRow}>
+                  <TextInput
+                    style={styles.archiveInput}
+                    placeholder="Search by SR# or Officer#"
+                    placeholderTextColor={Colors.dark.textMuted}
+                    value={archiveQuery}
+                    onChangeText={setArchiveQuery}
+                    onSubmitEditing={searchArchive}
+                    returnKeyType="search"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity style={styles.archiveSearchBtn} onPress={searchArchive} activeOpacity={0.8}>
+                    {archiveLoading
+                      ? <ActivityIndicator size="small" color={Colors.dark.tint} />
+                      : <Ionicons name="search" size={18} color={Colors.dark.tint} />
+                    }
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  style={styles.modalBody}
+                  contentContainerStyle={styles.inProgressList}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  {!archiveLoading && archiveQuery.trim() !== "" && archiveResults.length === 0 ? (
+                    <View style={styles.inProgressEmpty}>
+                      <Ionicons name="archive-outline" size={44} color={Colors.dark.textMuted} />
+                      <Text style={styles.inProgressEmptyText}>No records found</Text>
+                      <Text style={styles.inProgressEmptyHint}>Try a different SR# or Officer#</Text>
+                    </View>
+                  ) : (
+                    archiveResults.map((req) => (
+                      <View key={req.id} style={[styles.inProgressItem, req.status === "complete" && styles.inProgressItemDone]}>
+                        <View style={[styles.inProgressBar, req.status === "complete" && styles.inProgressBarDone]} />
                         <View style={styles.inProgressInfo}>
-                          <Text style={styles.inProgressAddress} numberOfLines={1}>{req.addressLabel}</Text>
-                          <Text style={styles.inProgressType} numberOfLines={1}>{req.offenceType || req.code21Type}</Text>
-                          <Text style={styles.inProgressMeta}>{req.offenceDate}{"  "}{req.offenceTime}</Text>
+                          <Text style={[styles.inProgressAddress, req.status === "complete" && styles.inProgressTextDone]} numberOfLines={1}>{req.addressLabel}</Text>
+                          <Text style={[styles.inProgressType, req.status === "complete" && styles.inProgressTextDone]} numberOfLines={1}>{req.offenceType || req.code21Type}</Text>
+                          <View style={styles.archiveMeta}>
+                            {req.serviceRequestNumber ? <Text style={styles.archiveMetaChip}>SR# {req.serviceRequestNumber}</Text> : null}
+                            <Text style={styles.archiveMetaChip}>Officer {req.officerNumber}</Text>
+                            <Text style={styles.inProgressMeta}>{req.offenceDate}</Text>
+                          </View>
                         </View>
                         <View style={styles.inProgressActions}>
-                          <TouchableOpacity
-                            style={styles.inProgressEditBtn}
-                            activeOpacity={0.7}
-                            onPress={() => {
-                              const addr = { label: req.addressLabel, latitude: req.latitude, longitude: req.longitude };
-                              setSelectedAddress(addr);
-                              setLastSelectedAddress(addr);
-                              setAddressQuery(req.addressLabel);
-                              setAddressDropdownVisible(false);
-                              setOfficerNumber(req.officerNumber || DEFAULT_OFFICER_NUMBER);
-                              setServiceRequestNumber(req.serviceRequestNumber || "");
-                              setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
-                              setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
-                              setCode21Type(req.offenceType || req.code21Type);
-                              setDispatchNotes(req.dispatchNotes);
-                              setAttendanceNotes(req.attendanceNotes);
-                              setPinValue(req.pin);
-                              setPinIssued(!!req.pin);
-                              setVehicleMake(req.vehicleMake || "");
-                              setVehicleColour(req.vehicleColour || "");
-                              setVehicleRego(req.vehicleRego || "");
-                              setVehicleMakeQuery(req.vehicleMake || "");
-                              setVehicleColourQuery(req.vehicleColour || "");
-                              setOffenceTypeQuery("");
-                              setDescription(req.description);
-                              setTravelMode(req.travelMode);
-                              setEditingRequestId(req.id);
-                              scrollToTab(0);
-                            }}
-                          >
-                            <Ionicons name="create-outline" size={19} color={Colors.dark.textSecondary} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.inProgressCompleteBtn}
-                            activeOpacity={0.7}
-                            onPress={() => markCode21Complete(req.id)}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={22} color={Colors.dark.tint} />
-                          </TouchableOpacity>
+                          <View style={styles.inProgressCompleteBtn}>
+                            <Ionicons
+                              name={req.status === "complete" ? "checkmark-circle" : "time-outline"}
+                              size={20}
+                              color={req.status === "complete" ? Colors.dark.textMuted : Colors.dark.warning}
+                            />
+                          </View>
                         </View>
                       </View>
                     ))
@@ -2195,6 +2330,60 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 16,
+  },
+  inProgressItemDone: {
+    opacity: 0.6,
+  },
+  inProgressBarDone: {
+    backgroundColor: Colors.dark.textMuted,
+  },
+  inProgressTextDone: {
+    textDecorationLine: "line-through",
+    color: Colors.dark.textMuted,
+  },
+  archiveSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  archiveInput: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceAlt,
+    paddingHorizontal: 10,
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.text,
+    fontSize: 12,
+  },
+  archiveSearchBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.tint,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.surfaceAlt,
+  },
+  archiveMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 2,
+  },
+  archiveMetaChip: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.tint,
+    fontSize: 9,
+    letterSpacing: 0.3,
   },
   modalActions: {
     flexDirection: 'row',

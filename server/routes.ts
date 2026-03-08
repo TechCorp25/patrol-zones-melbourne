@@ -267,6 +267,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(200).json({ requests });
   });
 
+  const archiveSearchSchema = z.object({
+    q: z.string().min(1).max(64),
+  });
+
+  app.get("/api/code21/archive", async (req, res) => {
+    const parsed = archiveSearchSchema.safeParse(req.query);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Missing or invalid search query.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const requests = await storage.searchCode21Archive(parsed.data.q);
+
+    return res.status(200).json({ requests });
+  });
+
   const patchCode21Schema = z.object({
     status: z.enum(["in_progress", "complete"]),
   });
