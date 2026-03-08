@@ -92,6 +92,15 @@ function saturateHexColor(hex: string, boost: number) {
   return `#${toHex(nextR)}${toHex(nextG)}${toHex(nextB)}`;
 }
 
+const DestinationPin = memo(function DestinationPin() {
+  return (
+    <View style={styles.pinContainer}>
+      <View style={styles.pinHead} />
+      <View style={styles.pinNeedle} />
+    </View>
+  );
+});
+
 const ZonePolygons = memo(function ZonePolygons({
   currentZoneId,
   assignedZoneId,
@@ -212,22 +221,31 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
           <Marker
             key={destination.id}
             coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
-            pinColor={Colors.dark.warning}
+            anchor={{ x: 0.5, y: 1 }}
             title={destination.title}
             description={destination.subtitle}
+            tracksViewChanges={false}
             onPress={() => onDestinationPress?.(destination.id)}
             onCalloutPress={() => onDestinationLongPress?.(destination.id)}
-          />
+          >
+            <DestinationPin />
+          </Marker>
         ))}
 
         {previewPin && (
           <Marker
             key="preview-pin"
             coordinate={{ latitude: previewPin.latitude, longitude: previewPin.longitude }}
-            pinColor={Colors.dark.tint}
+            anchor={{ x: 0.5, y: 1 }}
             title={previewPin.label}
             description="Code 21 address"
-          />
+            tracksViewChanges={false}
+          >
+            <View style={styles.pinContainer}>
+              <View style={[styles.pinHead, styles.pinHeadPreview]} />
+              <View style={[styles.pinNeedle, styles.pinNeedlePreview]} />
+            </View>
+          </Marker>
         )}
 
         {location && (
@@ -276,6 +294,39 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: "#fff",
+  },
+  pinContainer: {
+    alignItems: "center",
+  },
+  pinHead: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.dark.warning,
+    borderWidth: 2.5,
+    borderColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  pinHeadPreview: {
+    backgroundColor: Colors.dark.tint,
+  },
+  pinNeedle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: Colors.dark.warning,
+    marginTop: -1,
+  },
+  pinNeedlePreview: {
+    borderTopColor: Colors.dark.tint,
   },
   addressTextDark: {
     color: "#FFFFFF",
