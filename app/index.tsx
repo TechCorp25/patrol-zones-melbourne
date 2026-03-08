@@ -46,7 +46,6 @@ import {
   getCode21Types,
   getVehicleColours,
   getVehicleMakes,
-  optimiseCode21Route,
   searchAddressOptions,
   searchFilterOptions,
   type Code21Request,
@@ -114,6 +113,96 @@ function estimateNavDuration(distanceMetres: number, mode: "foot" | "vehicle"): 
   return distanceMetres / (mode === "foot" ? 1.39 : 8.33);
 }
 
+const SLA_MINUTES = 90;
+
+function getTerrainMultiplier(elevationGainMetres: number, distanceMetres: number, mode: "foot" | "vehicle"): number {
+  if (distanceMetres < 10) return 1.0;
+  const gradient = (elevationGainMetres / distanceMetres) * 100;
+  if (mode === "vehicle") return gradient > 8 ? 1.1 : 1.0;
+  if (gradient < -2) return 0.85;
+  if (gradient <= 2) return 1.0;
+  if (gradient <= 5) return 1.2;
+  if (gradient <= 10) return 1.5;
+  if (gradient <= 15) return 1.8;
+  return 2.2;
+}
+
+function getSLAStatus(createdAt: string, nowMs: number): { text: string; level: "ok" | "warn" | "critical" | "breach" } {
+  const deadlineMs = new Date(createdAt).getTime() + SLA_MINUTES * 60 * 1000;
+  const remainingMs = deadlineMs - nowMs;
+  if (remainingMs <= 0) return { text: "BREACH", level: "breach" };
+  const mins = Math.ceil(remainingMs / 60_000);
+  if (mins < 15) return { text: `${mins}m`, level: "critical" };
+  if (mins < 30) return { text: `${mins}m`, level: "warn" };
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return { text: h > 0 ? `${h}h${m}m` : `${mins}m`, level: "ok" };
+}
+
+async function fetchElevations(points: { latitude: number; longitude: number }[], apiBase: string): Promise<number[]> {
+  try {
+    const res = await fetch(`${apiBase}/api/elevation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locations: points }),
+      signal: AbortSignal.timeout(6000),
+    });
+    const data = await res.json() as number[];
+    if (!Array.isArray(data) || data.length !== points.length) throw new Error("bad response");
+    return data;
+  } catch {
+    return points.map(() => 0);
+  }
+}
+
+async function optimiseWithTerrainAndSLA(
+  requests: Code21Request[],
+  currentLocation: { latitude: number; longitude: number },
+  mode: "foot" | "vehicle",
+  apiBase: string,
+): Promise<Code21Request[]> {
+  if (requests.length <= 1) return [...requests];
+
+  const allPoints = [currentLocation, ...requests.map((r) => ({ latitude: r.latitude, longitude: r.longitude }))];
+  const elevations = await fetchElevations(allPoints, apiBase);
+  const officerElev = elevations[0];
+  const stopElevs = elevations.slice(1);
+  const baseSpeed = mode === "foot" ? 1.39 : 8.33;
+
+  const remaining = requests.map((r, i) => ({ request: r, elev: stopElevs[i] }));
+  const ordered: Code21Request[] = [];
+  let curPos = currentLocation;
+  let curElev = officerElev;
+  const now = Date.now();
+
+  while (remaining.length > 0) {
+    let bestIdx = 0;
+    let bestSlack = Infinity;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const { request: req, elev: stopElev } = remaining[i];
+      const dist = haversineDistanceMetres(curPos.latitude, curPos.longitude, req.latitude, req.longitude);
+      const elevGain = stopElev - curElev;
+      const multiplier = getTerrainMultiplier(elevGain, dist, mode);
+      const travelTime = (dist / baseSpeed) * multiplier;
+      const deadline = new Date(req.createdAt).getTime() + SLA_MINUTES * 60 * 1000;
+      const slack = (deadline - now) / 1000 - travelTime;
+
+      if (slack < bestSlack) {
+        bestSlack = slack;
+        bestIdx = i;
+      }
+    }
+
+    const chosen = remaining.splice(bestIdx, 1)[0];
+    ordered.push(chosen.request);
+    curPos = { latitude: chosen.request.latitude, longitude: chosen.request.longitude };
+    curElev = chosen.elev;
+  }
+
+  return ordered;
+}
+
 export default function PatrolMapScreen() {
   const insets = useSafeAreaInsets();
 
@@ -157,6 +246,8 @@ export default function PatrolMapScreen() {
   const [activeNavRequest, setActiveNavRequest] = useState<Code21Request | null>(null);
   const [navArrived, setNavArrived] = useState(false);
   const [navDistanceMetres, setNavDistanceMetres] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [routeOrderedRequests, setRouteOrderedRequests] = useState<Code21Request[]>([]);
   const tabScrollRef = useRef<ScrollView>(null);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
@@ -190,6 +281,7 @@ export default function PatrolMapScreen() {
   const headingSub = useRef<{ remove: () => void } | null>(null);
   const lastHeadingRef = useRef(0);
   const lastHeadingTimeRef = useRef(0);
+  const locationRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   const panelHeight = useSharedValue(PANEL_MIN);
   const safeBottom = insets.bottom > 0 ? insets.bottom : 8;
@@ -393,10 +485,30 @@ export default function PatrolMapScreen() {
     return [...active, ...completedToday];
   }, [code21Requests, completedTimestamps]);
 
-  const routeOrderedRequests = useMemo(() => {
-    if (!location || inProgressRequests.length === 0) return inProgressRequests;
-    return optimiseCode21Route(location, inProgressRequests);
-  }, [location, inProgressRequests]);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (inProgressRequests.length === 0) {
+      setRouteOrderedRequests([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const loc = locationRef.current;
+      if (!loc) {
+        setRouteOrderedRequests([...inProgressRequests]);
+        return;
+      }
+      void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL).then(setRouteOrderedRequests);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [inProgressRequests, travelMode]);
   const filteredVehicleMakes = useMemo(
     () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
     [vehicleMakeQuery],
@@ -1636,6 +1748,7 @@ export default function PatrolMapScreen() {
           <View style={styles.routeDivider} />
           {routeOrderedRequests.slice(0, 5).map((request, index) => {
             const isNavigating = activeNavRequest?.id === request.id;
+            const sla = getSLAStatus(request.createdAt, nowMs);
             return (
               <View key={request.id} style={[styles.routeStopRow, isNavigating && styles.routeStopRowActive]}>
                 <View style={[styles.routeStopBadge, isNavigating && styles.routeStopBadgeActive]}>
@@ -1644,8 +1757,11 @@ export default function PatrolMapScreen() {
                 <Text style={[styles.routeItem, isNavigating && styles.routeItemActive]} numberOfLines={1}>
                   {request.addressLabel}
                 </Text>
+                <View style={[styles.slaBadge, styles[`slaBadge_${sla.level}` as keyof typeof styles] as object]}>
+                  <Text style={[styles.slaText, sla.level === "breach" && styles.slaTextBreach]}>{sla.text}</Text>
+                </View>
                 <TouchableOpacity
-                  style={styles.routeNavBtn}
+                  style={[styles.routeNavBtn, isNavigating && styles.routeNavBtnActive]}
                   onPress={() => isNavigating ? stopNavigation() : startNavigation(request)}
                   activeOpacity={0.7}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -2727,6 +2843,37 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.tint,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  routeNavBtnActive: {
+    borderColor: Colors.dark.danger,
+  },
+  slaBadge: {
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 5,
+    minWidth: 38,
+    alignItems: 'center',
+  },
+  slaBadge_ok: {
+    backgroundColor: 'rgba(16,185,129,0.18)',
+  },
+  slaBadge_warn: {
+    backgroundColor: 'rgba(245,158,11,0.25)',
+  },
+  slaBadge_critical: {
+    backgroundColor: 'rgba(239,68,68,0.28)',
+  },
+  slaBadge_breach: {
+    backgroundColor: 'rgba(127,29,29,0.5)',
+  },
+  slaText: {
+    fontFamily: 'RobotoMono_700Bold',
+    color: Colors.dark.text,
+    fontSize: 7.5,
+    letterSpacing: 0.3,
+  },
+  slaTextBreach: {
+    color: '#ff9999',
   },
   routeStopRowActive: {
     backgroundColor: 'rgba(14,165,233,0.12)',

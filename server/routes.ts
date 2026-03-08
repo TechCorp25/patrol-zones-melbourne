@@ -405,6 +405,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.post("/api/elevation", async (req, res) => {
+    const { locations } = req.body as { locations: { latitude: number; longitude: number }[] };
+    if (!Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ error: "locations array required" });
+    }
+    try {
+      const elevRes = await fetch("https://api.open-elevation.com/api/v1/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locations }),
+        signal: AbortSignal.timeout(6000),
+      });
+      const data = await elevRes.json() as { results: { elevation: number }[] };
+      return res.json(data.results.map((r) => r.elevation));
+    } catch {
+      return res.json(locations.map(() => 0));
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
