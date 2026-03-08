@@ -83,6 +83,19 @@ function getLocalTimeString(): string {
   ].join(':');
 }
 
+function formatRouteDistance(metres: number): string {
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
+}
+
+function formatRouteDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMins = minutes % 60;
+  return remainingMins > 0 ? `${hours} h ${remainingMins} min` : `${hours} h`;
+}
+
 export default function PatrolMapScreen() {
   const insets = useSafeAreaInsets();
 
@@ -116,6 +129,13 @@ export default function PatrolMapScreen() {
   const [archiveQuery, setArchiveQuery] = useState("");
   const [archiveResults, setArchiveResults] = useState<Code21Request[]>([]);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [routePolyline, setRoutePolyline] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [routeInfo, setRouteInfo] = useState<{
+    distanceMetres: number;
+    durationSeconds: number;
+    legs: { distanceMetres: number; durationSeconds: number }[];
+  } | null>(null);
+  const [isFetchingRoute, setIsFetchingRoute] = useState(false);
   const tabScrollRef = useRef<ScrollView>(null);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
@@ -465,6 +485,65 @@ export default function PatrolMapScreen() {
     }
   }, [archiveQuery]);
 
+  const fetchOptimisedRoute = useCallback(async (
+    orderedRequests: Code21Request[],
+    mode: "foot" | "vehicle",
+    currentLocation: { latitude: number; longitude: number } | null,
+  ) => {
+    if (orderedRequests.length === 0) {
+      setRoutePolyline([]);
+      setRouteInfo(null);
+      return;
+    }
+    const waypoints: { lat: number; lng: number }[] = [];
+    if (currentLocation) {
+      waypoints.push({ lat: currentLocation.latitude, lng: currentLocation.longitude });
+    }
+    waypoints.push(...orderedRequests.map((r) => ({ lat: r.latitude, lng: r.longitude })));
+    if (waypoints.length < 2) return;
+
+    setIsFetchingRoute(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ waypoints, mode }),
+      });
+      if (response.ok) {
+        const data = await response.json() as {
+          polyline: { latitude: number; longitude: number }[];
+          distanceMetres: number;
+          durationSeconds: number;
+          legs: { distanceMetres: number; durationSeconds: number }[];
+        };
+        setRoutePolyline(data.polyline);
+        setRouteInfo({ distanceMetres: data.distanceMetres, durationSeconds: data.durationSeconds, legs: data.legs });
+      }
+    } catch {
+      // Fail silently; map shows without polyline
+    } finally {
+      setIsFetchingRoute(false);
+    }
+  }, []);
+
+  const navigateToLocation = useCallback((lat: number, lng: number) => {
+    const dirFlag = travelMode === "foot" ? "w" : "d";
+    const googleMode = travelMode === "foot" ? "walking" : "driving";
+    const iosUrl = `maps://?daddr=${lat},${lng}&dirflg=${dirFlag}`;
+    const androidUrl = `google.navigation:q=${lat},${lng}&mode=${dirFlag}`;
+    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=${googleMode}`;
+
+    if (Platform.OS === "ios") {
+      Linking.canOpenURL(iosUrl).then((can) => {
+        Linking.openURL(can ? iosUrl : webFallback);
+      });
+    } else {
+      Linking.canOpenURL(androidUrl).then((can) => {
+        Linking.openURL(can ? androidUrl : webFallback);
+      });
+    }
+  }, [travelMode]);
+
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) {
       Alert.alert("Address required", "Please search and select an address before saving.");
@@ -620,6 +699,19 @@ export default function PatrolMapScreen() {
     }, 60_000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (routeOrderedRequests.length === 0) {
+      setRoutePolyline([]);
+      setRouteInfo(null);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      void fetchOptimisedRoute(routeOrderedRequests, travelMode, location);
+    }, 800);
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeOrderedRequests, travelMode]);
 
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {
@@ -779,6 +871,8 @@ export default function PatrolMapScreen() {
         previewPin={selectedAddress && code21ModalVisible ? selectedAddress : null}
         mapType={MAP_TYPES[mapTypeIndex] as any}
         onMapReady={() => {}}
+        routePolyline={routePolyline}
+        routeMode={travelMode}
       />
 
       {/* ── Header ── */}
@@ -1475,9 +1569,41 @@ export default function PatrolMapScreen() {
 
       {routeOrderedRequests.length > 0 && (
         <View style={styles.routeCard}>
-          <Text style={styles.routeTitle}>Optimised Route ({travelMode === "foot" ? "on foot" : "vehicle"})</Text>
-          {routeOrderedRequests.slice(0, 4).map((request, index) => (
-            <Text key={request.id} style={styles.routeItem}>{index + 1}. {request.addressLabel}</Text>
+          <View style={styles.routeCardHeader}>
+            <Ionicons
+              name={travelMode === "foot" ? "walk-outline" : "car-outline"}
+              size={13}
+              color={travelMode === "foot" ? Colors.dark.success : Colors.dark.tint}
+            />
+            <Text style={styles.routeTitle}>
+              {travelMode === "foot" ? "ON FOOT" : "VEHICLE"}
+            </Text>
+            {isFetchingRoute
+              ? <ActivityIndicator size="small" color={Colors.dark.tint} style={styles.routeSpinner} />
+              : <Ionicons name="checkmark-circle" size={13} color={Colors.dark.success} style={styles.routeSpinner} />
+            }
+          </View>
+          {routeInfo && (
+            <Text style={styles.routeSummary}>
+              {formatRouteDistance(routeInfo.distanceMetres)}{"  ·  ~"}{formatRouteDuration(routeInfo.durationSeconds)}
+            </Text>
+          )}
+          <View style={styles.routeDivider} />
+          {routeOrderedRequests.slice(0, 5).map((request, index) => (
+            <View key={request.id} style={styles.routeStopRow}>
+              <View style={styles.routeStopBadge}>
+                <Text style={styles.routeStopNum}>{index + 1}</Text>
+              </View>
+              <Text style={styles.routeItem} numberOfLines={1}>{request.addressLabel}</Text>
+              <TouchableOpacity
+                style={styles.routeNavBtn}
+                onPress={() => navigateToLocation(request.latitude, request.longitude)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="navigate" size={14} color={Colors.dark.tint} />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       )}
@@ -2414,21 +2540,79 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 220,
     right: 12,
-    width: 180,
-    backgroundColor: 'rgba(10,22,40,0.92)',
+    width: 230,
+    backgroundColor: 'rgba(10,22,40,0.94)',
     borderWidth: 1,
     borderColor: Colors.dark.border,
     borderRadius: 10,
-    padding: 8,
-    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  routeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   routeTitle: {
+    flex: 1,
     color: Colors.dark.text,
+    fontFamily: 'RobotoMono_700Bold',
     fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  routeSpinner: {
+    marginLeft: 'auto' as any,
+  },
+  routeSummary: {
+    color: Colors.dark.textSecondary,
+    fontFamily: 'RobotoMono_400Regular',
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  routeDivider: {
+    height: 1,
+    backgroundColor: Colors.dark.border,
+    marginVertical: 2,
+  },
+  routeStopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  routeStopBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.dark.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeStopNum: {
+    color: '#fff',
+    fontSize: 9,
     fontWeight: '700' as const,
+    lineHeight: 11,
   },
   routeItem: {
+    flex: 1,
     color: Colors.dark.textSecondary,
-    fontSize: 10,
+    fontFamily: 'RobotoMono_400Regular',
+    fontSize: 9,
+    letterSpacing: 0.2,
+  },
+  routeNavBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: Colors.dark.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

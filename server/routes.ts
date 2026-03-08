@@ -325,6 +325,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(200).json({ request: updated });
   });
 
+  const routeRequestSchema = z.object({
+    waypoints: z.array(z.object({ lat: z.number(), lng: z.number() })).min(2).max(25),
+    mode: z.enum(["foot", "vehicle"]),
+  });
+
+  interface OsrmLeg {
+    distance: number;
+    duration: number;
+  }
+
+  interface OsrmRoute {
+    distance: number;
+    duration: number;
+    geometry: {
+      type: string;
+      coordinates: [number, number][];
+    };
+    legs: OsrmLeg[];
+  }
+
+  interface OsrmResponse {
+    code: string;
+    routes?: OsrmRoute[];
+  }
+
+  app.post("/api/route", async (req, res) => {
+    const parsed = routeRequestSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid route request.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const { waypoints, mode } = parsed.data;
+    const profile = mode === "foot" ? "foot" : "driving";
+    const coords = waypoints.map((w) => `${w.lng},${w.lat}`).join(";");
+    const osrmUrl = `https://router.project-osrm.org/route/v1/${profile}/${coords}?overview=full&geometries=geojson&steps=false`;
+
+    let osrmData: OsrmResponse;
+    try {
+      const osrmRes = await fetch(osrmUrl, {
+        signal: AbortSignal.timeout(8000),
+      });
+      osrmData = (await osrmRes.json()) as OsrmResponse;
+    } catch {
+      return res.status(502).json({
+        error: { code: "routing_unavailable", message: "Routing service unavailable." },
+      });
+    }
+
+    if (osrmData.code !== "Ok" || !osrmData.routes?.[0]) {
+      return res.status(422).json({
+        error: { code: "route_not_found", message: "No route found for the given waypoints." },
+      });
+    }
+
+    const route = osrmData.routes[0];
+    const polyline = route.geometry.coordinates.map(([lng, lat]) => ({
+      latitude: lat,
+      longitude: lng,
+    }));
+
+    const legs = route.legs.map((leg) => ({
+      distanceMetres: leg.distance,
+      durationSeconds: leg.duration,
+    }));
+
+    return res.status(200).json({
+      polyline,
+      distanceMetres: route.distance,
+      durationSeconds: route.duration,
+      legs,
+    });
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

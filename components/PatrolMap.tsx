@@ -1,6 +1,6 @@
 import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
-import MapView, { Polygon, Marker, Circle, Region } from "react-native-maps";
+import MapView, { Polygon, Marker, Circle, Polyline, Region } from "react-native-maps";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
@@ -20,6 +20,8 @@ export interface PatrolMapProps {
   previewPin?: { latitude: number; longitude: number; label: string } | null;
   mapType?: string;
   onMapReady?: () => void;
+  routePolyline?: { latitude: number; longitude: number }[];
+  routeMode?: "foot" | "vehicle";
 }
 
 const LIGHT_BASED_MAP_TYPES = new Set(["standard", "satellite", "hybrid"]);
@@ -226,7 +228,7 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
 });
 
 const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
-  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady },
+  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady, routePolyline, routeMode },
   ref,
 ) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
@@ -257,6 +259,27 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
       >
         <ZonePolygons currentZoneId={currentZoneId} assignedZoneId={assignedZoneId} mapType={resolvedMapType} />
         <StreetNumberMarkers visible={showNumbers} dark={isDarkStyle} />
+
+        {routePolyline && routePolyline.length > 1 && (
+          <>
+            {/* Shadow layer for contrast on all map types */}
+            <Polyline
+              coordinates={routePolyline}
+              strokeColor="rgba(0,0,0,0.35)"
+              strokeWidth={7}
+              lineCap="round"
+              lineJoin="round"
+            />
+            <Polyline
+              coordinates={routePolyline}
+              strokeColor={routeMode === "foot" ? Colors.dark.success : Colors.dark.tint}
+              strokeWidth={4}
+              lineDashPattern={routeMode === "foot" ? [8, 6] : undefined}
+              lineCap="round"
+              lineJoin="round"
+            />
+          </>
+        )}
 
         {destinations.map((destination) => (
           <DestinationMarker
