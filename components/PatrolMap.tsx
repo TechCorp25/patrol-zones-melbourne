@@ -238,7 +238,10 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
     const [showNumbers, setShowNumbers] = useState(false);
 
     const handleRegionChange = useCallback((region: Region) => {
-      setShowNumbers(region.latitudeDelta < ZOOM_THRESHOLD_NUMBERS);
+      const shouldShowNumbers = region.latitudeDelta < ZOOM_THRESHOLD_NUMBERS;
+      setShowNumbers((previousValue) =>
+        previousValue === shouldShowNumbers ? previousValue : shouldShowNumbers,
+      );
     }, []);
 
     return (

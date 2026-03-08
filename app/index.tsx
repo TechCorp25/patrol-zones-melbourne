@@ -544,6 +544,37 @@ export default function PatrolMapScreen() {
     }
   }, [travelMode]);
 
+  const navigateMultiStopJourney = useCallback((orderedRequests: Code21Request[]) => {
+    if (orderedRequests.length === 0) return;
+
+    const googleMode = travelMode === "foot" ? "walking" : "driving";
+    const maxStops = 9;
+    const truncatedStops = orderedRequests.slice(0, maxStops);
+    const origin = location
+      ? `${location.latitude},${location.longitude}`
+      : `${truncatedStops[0].latitude},${truncatedStops[0].longitude}`;
+    const destinationStop = truncatedStops[truncatedStops.length - 1];
+    const destination = `${destinationStop.latitude},${destinationStop.longitude}`;
+    const intermediateStops = truncatedStops.slice(0, -1);
+    const waypointStops = location ? intermediateStops : intermediateStops.slice(1);
+    const waypointParam = waypointStops
+      .map((stop) => `${stop.latitude},${stop.longitude}`)
+      .join("|");
+
+    const params = new URLSearchParams({
+      api: "1",
+      origin,
+      destination,
+      travelmode: googleMode,
+    });
+
+    if (waypointParam.length > 0) {
+      params.set("waypoints", waypointParam);
+    }
+
+    void Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`);
+  }, [location, travelMode]);
+
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) {
       Alert.alert("Address required", "Please search and select an address before saving.");
@@ -1588,6 +1619,14 @@ export default function PatrolMapScreen() {
               {formatRouteDistance(routeInfo.distanceMetres)}{"  ·  ~"}{formatRouteDuration(routeInfo.durationSeconds)}
             </Text>
           )}
+          <TouchableOpacity
+            style={styles.routeJourneyBtn}
+            onPress={() => navigateMultiStopJourney(routeOrderedRequests)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="navigate-circle-outline" size={14} color={Colors.dark.tint} />
+            <Text style={styles.routeJourneyBtnText}>Start multi-stop route</Text>
+          </TouchableOpacity>
           <View style={styles.routeDivider} />
           {routeOrderedRequests.slice(0, 5).map((request, index) => (
             <View key={request.id} style={styles.routeStopRow}>
@@ -2574,6 +2613,23 @@ const styles = StyleSheet.create({
     fontFamily: 'RobotoMono_400Regular',
     fontSize: 10,
     letterSpacing: 0.3,
+  },
+  routeJourneyBtn: {
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.dark.tint,
+    paddingVertical: 5,
+  },
+  routeJourneyBtnText: {
+    color: Colors.dark.tint,
+    fontFamily: 'RobotoMono_700Bold',
+    fontSize: 9,
+    letterSpacing: 0.2,
   },
   routeDivider: {
     height: 1,
