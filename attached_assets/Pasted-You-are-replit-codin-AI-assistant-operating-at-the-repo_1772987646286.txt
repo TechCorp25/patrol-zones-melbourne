@@ -1,0 +1,145 @@
+You are replit codin AI assistant operating at the repository root.
+
+Perform a full-scale, granular, repo-wide assessment and optimization of the entire codebase. Inspect the repository file by file and line by line as needed to make evidence-based decisions.
+
+Your mission is to leave the repo in a best-in-class state that is:
+- production-grade
+- fully functional
+- materially more correct and reliable
+- higher performance
+- lower CPU and memory overhead
+- lower unnecessary I/O, network, render, and background work
+- more likely to reduce device battery drain where code behavior meaningfully affects it
+- free of dead code, stale wiring, orphaned endpoints, useless imports, and avoidable duplication
+- consistently formatted with unified spacing, indentation, line structure, import/order hygiene, and maintainable organization
+- aligned with modern, up-to-date best practices
+
+Execution mode:
+1. Start with assessment and baselining.
+2. Build a prioritized issue register.
+3. Apply the highest-value safe fixes in small, reviewable batches.
+4. After each batch, run the narrowest relevant validation available.
+5. Continue until the remaining work is blocked by external dependencies, missing credentials, missing fixtures, unacceptable risk, or lack of reproducible evidence.
+
+Non-negotiables:
+- Do not guess. Inspect code, configs, scripts, manifests, CI, tests, and build tooling before claiming anything.
+- Do not fabricate benchmark numbers, test results, coverage, battery gains, or production behavior.
+- Preserve public behavior unless fixing a bug, dead path, broken contract, or clearly harmful inefficiency.
+- Keep external interfaces stable unless a breaking change is clearly necessary; if so, document it and provide migration notes.
+- Remove dead code only when you can justify that it is unused, unreachable, obsolete, or superseded.
+- Prefer simpler architectures, lower steady-state work, fewer allocations, less duplication, and clearer ownership.
+- Treat correctness, security, observability, and performance as first-class requirements.
+- Do not stop at superficial linting. Trace call chains, lifecycle behavior, async/concurrency flow, caching, rendering, data movement, configuration wiring, and failure handling.
+- Make best effort without unnecessary back-and-forth. If blocked, record the blocker, the evidence, the risk, and the safest next step.
+
+Review lenses:
+- architecture and module boundaries
+- API/backend correctness, route registration, and orphaned endpoints
+- frontend/rendering efficiency and unnecessary state churn
+- language-specific optimization opportunities
+- concurrency, async, and scheduling correctness
+- database/query efficiency and data movement
+- memory pressure and allocation hotspots
+- startup, idle, and background work
+- caching, batching, debounce/throttle opportunities
+- logging, metrics, tracing, and error-handling gaps
+- security vulnerabilities and dependency risk
+- test quality, missing coverage, and regression risk
+- documentation drift and misleading comments
+- formatting consistency and maintainability
+
+Dead code includes, but is not limited to:
+- unused imports, exports, variables, types, functions, classes, modules, assets, scripts, configs, and dependencies
+- endpoints, routes, handlers, controllers, jobs, commands, or background tasks with no reachable registration, caller, or consumer
+- unreachable branches, stale feature flags, obsolete adapters, abandoned migrations, and duplicate helpers
+- comments/TODOs/docs that no longer match real behavior
+
+Battery optimization guidance:
+- If direct battery metrics are unavailable, use concrete proxies such as CPU time, allocations, render churn, polling/timers, background wakeups, network chatter, sync I/O on hot paths, repeated parsing/serialization, unnecessary retries, and startup work.
+- Never claim battery improvement without either direct measurement or a clear causal proxy-based explanation.
+
+Required workflow:
+
+Phase 0 - Repository inventory
+- Map languages, frameworks, apps, packages, services, entry points, build tools, CI workflows, test harnesses, and deployment artifacts.
+- Identify any existing lint, format, typecheck, benchmark, profile, or test commands.
+- Identify high-risk zones such as hot paths, concurrency-heavy code, data-heavy loops, rendering hotspots, auth flows, payment flows, mobile/device-facing logic, and long-running/background tasks.
+
+Phase 1 - Evidence-based assessment
+- Review the repo systematically and build an issue register grouped by severity and expected impact.
+- Trace critical call flows end to end.
+- Identify bugs, correctness issues, dead code, performance bottlenecks, outdated patterns, duplication, dependency waste, and formatting inconsistencies.
+- For each issue, record:
+  - location
+  - root cause
+  - user/system impact
+  - proposed fix
+  - validation method
+  - risk level
+
+Phase 2 - Prioritized optimization plan
+Prioritize in this order:
+1. correctness, security, and data-loss issues
+2. crashes, hangs, leaks, race conditions, broken UX, and severe reliability issues
+3. CPU, memory, startup, idle, render, and likely battery inefficiencies
+4. dead code, duplicate logic, and unnecessary dependency removal
+5. formatting, consistency, and documentation cleanup
+
+Phase 3 - Implementation
+- Apply the highest-value safe improvements in small batches.
+- Keep diffs focused and easy to review.
+- Add or update tests whenever behavior changes or a bug is fixed.
+- Refactor for clarity when it also improves reliability, performance, or maintainability.
+- Use existing tooling rather than introducing unnecessary new dependencies.
+
+Phase 4 - Verification
+- Run the smallest effective set of checks after each batch.
+- Use the repository's existing lint/typecheck/test/build workflows whenever available.
+- For performance-sensitive areas, compare before/after using available benchmarks or defensible proxies.
+- Verify that removed code truly has no remaining references.
+- Verify formatting is consistent and automated where possible.
+
+Phase 5 - Final report
+Return a final report with these exact sections:
+1. Executive Summary
+2. Repository Inventory
+3. Findings by Severity
+4. Highest-Impact Optimizations Applied
+5. Dead Code Removed
+6. Bugs and Reliability Issues Fixed
+7. Performance and Resource Improvements
+8. Formatting and Consistency Improvements
+9. Validation Performed
+10. Remaining Risks / Blockers
+11. Next Best Actions
+
+For every finding or change, include:
+- file path(s)
+- concise evidence
+- why it matters
+- what changed or should change
+- how it was validated
+- expected impact
+- whether it affects CPU, memory, I/O, network, startup time, responsiveness, or likely battery usage
+
+Success criteria:
+- the repo builds/tests/lints/typechecks cleanly, or blockers are explicitly documented with evidence
+- unnecessary work is measurably or convincingly reduced
+- dead code and unused dependencies are materially reduced
+- formatting and structure are consistently improved
+- no obvious regressions are introduced
+- code follows modern, production-grade best practices
+- output is concise, concrete, and evidence-based
+
+When tradeoffs appear:
+- choose correctness over micro-optimization
+- choose simplicity over cleverness
+- choose maintainability over premature abstraction
+- choose measured evidence over speculation
+
+Start now by:
+1. inventorying the repository,
+2. identifying the top 10 issues by impact,
+3. executing the highest-value safe fixes,
+4. validating each batch,
+5. producing the final report.
