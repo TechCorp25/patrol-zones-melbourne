@@ -109,6 +109,7 @@ export default function PatrolMapScreen() {
   const [addressDropdownVisible, setAddressDropdownVisible] = useState(false);
   const [documentViewRequest, setDocumentViewRequest] = useState<Code21Request | null>(null);
   const [documentViewVisible, setDocumentViewVisible] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
@@ -421,7 +422,42 @@ export default function PatrolMapScreen() {
       formattedDocument,
     };
 
-    // Optimistic update — marker appears on map immediately
+    const resetForm = () => {
+      setCode21ModalVisible(false);
+      setEditingRequestId(null);
+      setDescription("");
+      setDispatchNotes("");
+      setAttendanceNotes("");
+      setPinValue("");
+      setPinIssued(false);
+      setServiceRequestNumber("");
+      setVehicleMake("");
+      setVehicleColour("");
+      setVehicleRego("");
+      setVehicleMakeQuery("");
+      setVehicleColourQuery("");
+      setOffenceTypeQuery("");
+      setAddressQuery("");
+      setAddressDropdownVisible(false);
+      setCode21Type("");
+      setSelectedAddress(null);
+    };
+
+    if (editingRequestId !== null) {
+      // Editing an existing request — update the local entry in place, no new server record
+      const updatedEntry: Code21Request = {
+        ...payload,
+        id: editingRequestId,
+        createdAt: new Date().toISOString(),
+      };
+      setCode21Requests((prev) =>
+        prev.map((r) => (r.id === editingRequestId ? updatedEntry : r))
+      );
+      resetForm();
+      return;
+    }
+
+    // New request — optimistic update so marker appears on map immediately
     const tempId = `local-${Date.now()}`;
     const localEntry: Code21Request = {
       ...payload,
@@ -429,25 +465,7 @@ export default function PatrolMapScreen() {
       createdAt: new Date().toISOString(),
     };
     setCode21Requests((prev) => [...prev, localEntry]);
-
-    // Close and reset form right away
-    setCode21ModalVisible(false);
-    setDescription("");
-    setDispatchNotes("");
-    setAttendanceNotes("");
-    setPinValue("");
-    setPinIssued(false);
-    setServiceRequestNumber("");
-    setVehicleMake("");
-    setVehicleColour("");
-    setVehicleRego("");
-    setVehicleMakeQuery("");
-    setVehicleColourQuery("");
-    setOffenceTypeQuery("");
-    setAddressQuery("");
-    setAddressDropdownVisible(false);
-    setCode21Type("");
-    setSelectedAddress(null);
+    resetForm();
 
     // Persist to server in background — swap temp entry with server record on success
     try {
@@ -468,9 +486,10 @@ export default function PatrolMapScreen() {
     } catch {
       // Local entry remains on map for the session; will sync on next load if server recovers
     }
-  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
+    setEditingRequestId(null);
     setOffenceDate(getLocalDateString());
     setOffenceTime(getLocalTimeString());
     setPinValue("");
@@ -643,6 +662,7 @@ export default function PatrolMapScreen() {
             setOffenceTypeQuery("");
             setDescription(request.description);
             setTravelMode(request.travelMode);
+            setEditingRequestId(request.id);
             setCode21ModalVisible(true);
           }
         }}
@@ -958,7 +978,7 @@ export default function PatrolMapScreen() {
         )}
       </Animated.View>
 
-      <Modal visible={code21ModalVisible} transparent animationType="fade" onRequestClose={() => setCode21ModalVisible(false)} statusBarTranslucent>
+      <Modal visible={code21ModalVisible} transparent animationType="fade" onRequestClose={() => { setCode21ModalVisible(false); setEditingRequestId(null); }} statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -967,7 +987,7 @@ export default function PatrolMapScreen() {
                 <Text style={styles.modalTitle}>CODE21 REQUEST</Text>
                 <Text style={styles.modalSubtitle}>Dispatch and attendance workflow</Text>
               </View>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setCode21ModalVisible(false)} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setCode21ModalVisible(false); setEditingRequestId(null); }} activeOpacity={0.8}>
                 <Ionicons name="close" size={22} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -1148,7 +1168,7 @@ export default function PatrolMapScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setCode21ModalVisible(false)}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => { setCode21ModalVisible(false); setEditingRequestId(null); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={submitCode21}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
             </View>
           </View>
