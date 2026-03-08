@@ -321,6 +321,7 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
               anchor={{ x: 0.5, y: 0.5 }}
               flat
               rotation={roundedHeading}
+              tracksViewChanges={false}
             >
               <View style={styles.userDot}>
                 <View style={styles.userDotInner} />

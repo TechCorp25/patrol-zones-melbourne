@@ -15,14 +15,6 @@ import {
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutNav() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-    </Stack>
-  );
-}
-
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     RobotoMono_400Regular,
@@ -43,7 +35,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <RootLayoutNav />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+            </Stack>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </SafeAreaProvider>

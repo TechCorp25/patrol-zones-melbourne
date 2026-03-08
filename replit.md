@@ -135,6 +135,36 @@ The Code 21 modal has two tabs navigated via horizontal swipe or tab bar tap:
 - `PATCH /api/code21/:id` endpoint updates status in the database
 - `status` column added to `code21_requests` table (DB migration applied)
 
+## Optimisation History
+
+### Repo-Wide Assessment (2026-03-08)
+Applied a full-scale evidence-based assessment and optimisation pass. All changes verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and smoke test.
+
+**Correctness / Reliability**
+- `server/routes.ts` — Rate limiter `attempts` Map now purges stale entries when size exceeds 5 000, preventing unbounded memory growth in long-running processes
+- `server/routes.ts` — `POST /api/elevation` now validates input with Zod (was an unsafe cast with no type or bounds checking); also validates the external API response shape before mapping
+- `server/routes.ts` — Elevation endpoint now guards against malformed upstream responses returning wrong result count
+
+**Performance / Battery**
+- `components/PatrolMap.tsx` — User location marker now has `tracksViewChanges={false}`, preventing a native bitmap snapshot cycle every 150 ms heading update (was always implicitly `true` — iOS/Android re-rendered on every compass tick)
+- `app/index.tsx` — `destinations` prop memoized via `useMemo`; was recreating a new array on every render, defeating `memo(PatrolMap)` and causing unnecessary re-renders
+- `app/index.tsx` — `onDestinationPress` and `onDestinationLongPress` converted from inline JSX lambdas to `useCallback` hooks; was creating new function references on every render, defeating `memo(PatrolMap)`
+- `app/index.tsx` — `MAP_TYPES`, `MAP_TYPE_LABELS`, `MAP_TYPE_ICONS` lifted to module scope; `Platform.OS` is stable at runtime, no need to re-evaluate on every render
+- `app/index.tsx` — `visibleCode21Requests` memo now consumes `inProgressRequests` directly instead of re-filtering `code21Requests` a second time
+
+**Dead Code Removed**
+- `lib/query-client.ts` — Removed `getApiUrl`, `apiRequest`, `getQueryFn` exports — none were called anywhere in the codebase; `queryClient` is the only used export
+- `components/KeyboardAwareScrollViewCompat.tsx` — Removed; the component was never imported or used
+- `app/_layout.tsx` — Removed redundant `RootLayoutNav` inner component; the `Stack` is now inlined directly, eliminating an extra function allocation per mount
+- `app/index.tsx` — Removed empty `onMapReady={() => {}}` no-op prop; was creating a new function reference on every render for no effect
+
+**Known Remaining Risks**
+- Sessions are stored in-memory (`Map` in `DbStorage`), not persisted to the database — sessions are lost on server restart. This is a known design choice. Migration path: add a `sessions` table and persist via Drizzle.
+- `CODE21_TYPES` enum is duplicated between `constants/code21.ts` and `shared/schema.ts` — a single source of truth would reduce maintenance risk, but requires a shared-boundary refactor.
+- `constants/streets.ts` and `constants/streetNumbers.ts` both define the same intersection coordinate data — safe to deduplicate in a future refactor.
+
+---
+
 ## Running the App
 - Start Backend: `npm run server:dev` (port 5000)
 - Start Frontend: `npm run expo:dev` (port 8081)

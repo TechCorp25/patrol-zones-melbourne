@@ -25,6 +25,12 @@ function buildAuthRateLimiter({
     const current = attempts.get(key);
 
     if (!current || current.resetAt <= now) {
+      // Purge stale entries periodically to prevent unbounded memory growth
+      if (attempts.size > 5000) {
+        for (const [k, v] of attempts) {
+          if (v.resetAt <= now) attempts.delete(k);
+        }
+      }
       attempts.set(key, { count: 1, resetAt: now + windowMs });
       return next();
     }
@@ -405,11 +411,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  const elevationLocationSchema = z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  });
+
+  const elevationRequestSchema = z.object({
+    locations: z.array(elevationLocationSchema).min(1).max(512),
+  });
+
   app.post("/api/elevation", async (req, res) => {
-    const { locations } = req.body as { locations: { latitude: number; longitude: number }[] };
-    if (!Array.isArray(locations) || locations.length === 0) {
-      return res.status(400).json({ error: "locations array required" });
+    const parsed = elevationRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid elevation request.",
+          details: parsed.error.flatten(),
+        },
+      });
     }
+    const { locations } = parsed.data;
     try {
       const elevRes = await fetch("https://api.open-elevation.com/api/v1/lookup", {
         method: "POST",
@@ -418,6 +440,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signal: AbortSignal.timeout(6000),
       });
       const data = await elevRes.json() as { results: { elevation: number }[] };
+      if (!Array.isArray(data.results) || data.results.length !== locations.length) {
+        return res.json(locations.map(() => 0));
+      }
       return res.json(data.results.map((r) => r.elevation));
     } catch {
       return res.json(locations.map(() => 0));

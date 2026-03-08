@@ -65,6 +65,17 @@ const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
 const SPRING_CONFIG = { damping: 20, stiffness: 180, overshootClamping: true };
 
+const MAP_TYPES = Platform.OS === "ios"
+  ? (["mutedStandard", "standard", "satellite", "hybrid"] as const)
+  : (["standard", "satellite", "hybrid"] as const);
+const MAP_TYPE_LABELS = Platform.OS === "ios"
+  ? ["Dark", "Light", "Satellite", "Hybrid"]
+  : ["Standard", "Satellite", "Hybrid"];
+const MAP_TYPE_ICONS: ("map-outline" | "sunny-outline" | "earth-outline" | "layers-outline")[] =
+  Platform.OS === "ios"
+    ? ["map-outline", "sunny-outline", "earth-outline", "layers-outline"]
+    : ["map-outline", "earth-outline", "layers-outline"];
+
 function getLocalDateString(): string {
   const now = new Date();
   return [
@@ -266,15 +277,6 @@ export default function PatrolMapScreen() {
   const [vehicleColour, setVehicleColour] = useState("");
   const [vehicleRego, setVehicleRego] = useState("");
   const [travelMode, setTravelMode] = useState<"foot" | "vehicle">("foot");
-  const MAP_TYPES = Platform.OS === 'ios'
-    ? ['mutedStandard', 'standard', 'satellite', 'hybrid'] as const
-    : ['standard', 'satellite', 'hybrid'] as const;
-  const MAP_TYPE_LABELS = Platform.OS === 'ios'
-    ? ['Dark', 'Light', 'Satellite', 'Hybrid']
-    : ['Standard', 'Satellite', 'Hybrid'];
-  const MAP_TYPE_ICONS: ('map-outline' | 'sunny-outline' | 'earth-outline' | 'layers-outline')[] = Platform.OS === 'ios'
-    ? ['map-outline', 'sunny-outline', 'earth-outline', 'layers-outline']
-    : ['map-outline', 'earth-outline', 'layers-outline'];
 
   const mapRef = useRef<any>(null);
   const locationSub = useRef<Location.LocationSubscription | null>(null);
@@ -475,15 +477,14 @@ export default function PatrolMapScreen() {
 
   const visibleCode21Requests = useMemo(() => {
     const todayStr = new Date().toDateString();
-    const active = code21Requests.filter((r) => r.status === "in_progress");
     const completedToday = code21Requests.filter(
       (r) =>
         r.status === "complete" &&
         completedTimestamps[r.id] !== undefined &&
         new Date(completedTimestamps[r.id]).toDateString() === todayStr,
     );
-    return [...active, ...completedToday];
-  }, [code21Requests, completedTimestamps]);
+    return [...inProgressRequests, ...completedToday];
+  }, [inProgressRequests, code21Requests, completedTimestamps]);
 
   useEffect(() => {
     locationRef.current = location;
@@ -901,6 +902,67 @@ export default function PatrolMapScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeOrderedRequests, travelMode]);
 
+  const mapDestinations = useMemo(
+    () =>
+      visibleCode21Requests.map((request) => ({
+        id: request.id,
+        latitude: request.latitude,
+        longitude: request.longitude,
+        title: request.addressLabel,
+        subtitle: request.code21Type,
+      })),
+    [visibleCode21Requests],
+  );
+
+  const handleDestinationPress = useCallback(
+    (destinationId: string) => {
+      const request = code21Requests.find((entry) => entry.id === destinationId);
+      if (request) {
+        const addr = {
+          label: request.addressLabel,
+          latitude: request.latitude,
+          longitude: request.longitude,
+        };
+        setSelectedAddress(addr);
+        setLastSelectedAddress(addr);
+        setAddressQuery(request.addressLabel);
+        setAddressDropdownVisible(false);
+        setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
+        setServiceRequestNumber(request.serviceRequestNumber || "");
+        setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
+        setOffenceTime(request.offenceTime || request.requestTime.slice(11, 16));
+        setCode21Type(request.offenceType || request.code21Type);
+        setDispatchNotes(request.dispatchNotes);
+        setAttendanceNotes(request.attendanceNotes);
+        setPinValue(request.pin);
+        setPinIssued(!!request.pin);
+        setVehicleMake(request.vehicleMake || "");
+        setVehicleColour(request.vehicleColour || "");
+        setVehicleRego(request.vehicleRego || "");
+        setVehicleMakeQuery(request.vehicleMake || "");
+        setVehicleColourQuery(request.vehicleColour || "");
+        setOffenceTypeQuery("");
+        setDescription(request.description);
+        setTravelMode(request.travelMode);
+        setEditingRequestId(request.id);
+        setActiveModalTab(0);
+        setCode21ModalVisible(true);
+      }
+    },
+    [code21Requests],
+  );
+
+  const handleDestinationLongPress = useCallback(
+    (destinationId: string) => {
+      const request = code21Requests.find((entry) => entry.id === destinationId);
+      if (request) {
+        setDocumentViewRequest(request);
+        setDocumentViewVisible(true);
+      }
+    },
+    [code21Requests],
+  );
+
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {
     return (
@@ -1008,57 +1070,11 @@ export default function PatrolMapScreen() {
         heading={heading}
         currentZoneId={currentZone?.id ?? null}
         assignedZoneId={assignedZone?.id ?? null}
-        destinations={code21Requests.map((request) => ({
-          id: request.id,
-          latitude: request.latitude,
-          longitude: request.longitude,
-          title: request.addressLabel,
-          subtitle: request.code21Type,
-        }))}
-        onDestinationPress={(destinationId) => {
-          const request = code21Requests.find((entry) => entry.id === destinationId);
-          if (request) {
-            const addr = {
-              label: request.addressLabel,
-              latitude: request.latitude,
-              longitude: request.longitude,
-            };
-            setSelectedAddress(addr);
-            setLastSelectedAddress(addr);
-            setAddressQuery(request.addressLabel);
-            setAddressDropdownVisible(false);
-            setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
-            setServiceRequestNumber(request.serviceRequestNumber || "");
-            setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
-            setOffenceTime(request.offenceTime || request.requestTime.slice(11, 16));
-            setCode21Type(request.offenceType || request.code21Type);
-            setDispatchNotes(request.dispatchNotes);
-            setAttendanceNotes(request.attendanceNotes);
-            setPinValue(request.pin);
-            setPinIssued(!!request.pin);
-            setVehicleMake(request.vehicleMake || "");
-            setVehicleColour(request.vehicleColour || "");
-            setVehicleRego(request.vehicleRego || "");
-            setVehicleMakeQuery(request.vehicleMake || "");
-            setVehicleColourQuery(request.vehicleColour || "");
-            setOffenceTypeQuery("");
-            setDescription(request.description);
-            setTravelMode(request.travelMode);
-            setEditingRequestId(request.id);
-            setActiveModalTab(0);
-            setCode21ModalVisible(true);
-          }
-        }}
-        onDestinationLongPress={(destinationId) => {
-          const request = code21Requests.find((entry) => entry.id === destinationId);
-          if (request) {
-            setDocumentViewRequest(request);
-            setDocumentViewVisible(true);
-          }
-        }}
+        destinations={mapDestinations}
+        onDestinationPress={handleDestinationPress}
+        onDestinationLongPress={handleDestinationLongPress}
         previewPin={selectedAddress && code21ModalVisible ? selectedAddress : null}
         mapType={MAP_TYPES[mapTypeIndex] as any}
-        onMapReady={() => {}}
         routePolyline={routePolyline}
         routeMode={travelMode}
       />
