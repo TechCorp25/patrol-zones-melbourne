@@ -18,10 +18,10 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 
 ### Frontend (Expo + React Native)
 - **Framework**: Expo SDK 54, Expo Router (file-based routing)
-- **Maps**: react-native-maps@1.18.0 (pinned — required for Expo Go iOS compatibility; 1.20.x+ crashes Expo Go with New Architecture)
+- **Maps**: react-native-maps@1.20.1 (pinned exact version — required for Expo Go iOS compatibility)
 - **Location**: expo-location (GPS + heading watchdog)
 - **Fonts**: @expo-google-fonts/roboto-mono
-- **Animation**: react-native-reanimated@3.17.5 (pinned at 3.x — 4.x requires New Architecture which breaks Expo Go)
+- **Animation**: react-native-reanimated@4.1.x + react-native-worklets (New Architecture, requires `newArchEnabled: true`)
 - **Storage**: @react-native-async-storage/async-storage
 - **Icons**: @expo/vector-icons (Ionicons, MaterialCommunityIcons)
 
@@ -174,6 +174,13 @@ Three targeted fixes in `app/index.tsx`. All verified via `tsc --noEmit` (zero e
 - Stale-closure route location — the route-fetching `useEffect` called `fetchOptimisedRoute(..., location)` where `location` was a stale closure variable captured from the render that created the timeout. Fixed by reading `locationRef.current` inside the `setTimeout` callback so OSRM always receives the live position; `fetchOptimisedRoute` added to the effect's dependency array and the suppression comment removed.
 - Unhandled optimisation rejection — `optimiseWithTerrainAndSLA` promise was chained with `.then()` only; added `.catch()` that falls back to the unoptimised request order so a transient elevation API failure can't silently crash the routing chain.
 - `Linking.openURL` unhandled rejection — wrapped in `.catch()` to show an `Alert` if Google Maps cannot be opened on the device.
+
+**Startup Crash Fix (2026-03-08) — React Compiler + Reanimated worklet ordering**
+Fixed `Exception in HostFunction:<unknown>` crash that caused the app to crash immediately after the main screen rendered on iOS Expo Go.
+
+Root cause: In Expo SDK 54, the React Compiler is built into `babel-preset-expo`. Without an explicit Babel plugin declaration, the Reanimated worklet transform was not guaranteed to run *after* the React Compiler. When the ordering was wrong, `useAnimatedStyle` and `runOnJS` worklets were not properly serialized — the first time the UI thread called into any worklet (the panel animated style fires the moment the map screen mounts), it threw `Exception in HostFunction:<unknown>` and crashed the app.
+
+Fix: Added `react-native-reanimated/plugin` as an explicit `plugins` entry in `babel.config.js` so it is always applied last, after all preset transforms including the React Compiler. All package versions reverted to correct state: react-native-maps@1.20.1, react-native-reanimated@4.1.6, react-native-worklets@0.5.1, `newArchEnabled: true`.
 
 ---
 
