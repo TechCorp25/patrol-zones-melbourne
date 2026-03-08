@@ -111,6 +111,121 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Start Frontend: `npm run expo:dev` (port 8081)
 - Scan QR from Replit's URL bar to test on device via Expo Go
 
+## Google Places + Route Optimization Integration (JavaScript Backend)
+
+If TypeScript is not available for your API service, use **Node.js + Express (plain JavaScript)** and integrate Google APIs server-side.
+
+### Recommended API stack
+
+1. **Google Places API (New) for address autocomplete + place details**
+   - Client calls your backend endpoint (for example `/api/places/autocomplete?text=...`).
+   - Backend calls Google Places using a server key and returns only fields needed by the app.
+
+2. **Google Routes API for route planning and waypoint optimization**
+   - Use `computeRoutes` with `optimizeWaypointOrder: true` when officers have multiple stops.
+   - Return route polyline, distance, duration, and optimized waypoint order to the app.
+
+3. **Keep all keys on the server**
+   - Do not call Google Places/Routes directly from Expo with raw API keys.
+   - Store credentials in environment variables and rotate regularly.
+
+### Environment variables (backend)
+
+```bash
+GOOGLE_MAPS_API_KEY=your_server_key
+GOOGLE_PLACES_BASE_URL=https://places.googleapis.com
+GOOGLE_ROUTES_BASE_URL=https://routes.googleapis.com
+```
+
+### Express (JavaScript) endpoint example: Places autocomplete
+
+```js
+app.get('/api/places/autocomplete', async (req, res) => {
+  const text = String(req.query.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'text is required' });
+
+  const response = await fetch(
+    `${process.env.GOOGLE_PLACES_BASE_URL}/v1/places:autocomplete`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+      },
+      body: JSON.stringify({
+        input: text,
+        languageCode: 'en',
+        locationBias: {
+          rectangle: {
+            low: { latitude: -37.82873974117791, longitude: 144.91809861502747 },
+            high: { latitude: -37.78052835130693, longitude: 144.99066183541663 },
+          },
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    return res.status(response.status).json({ error: 'places autocomplete failed' });
+  }
+
+  const data = await response.json();
+  const suggestions = (data.suggestions || []).map((s, i) => ({
+    id: s.placePrediction?.placeId || `s-${i}`,
+    label: s.placePrediction?.text?.text || '',
+    placeId: s.placePrediction?.placeId || null,
+  }));
+
+  return res.json({ suggestions });
+});
+```
+
+### Express (JavaScript) endpoint example: route optimization
+
+```js
+app.post('/api/routes/optimize', async (req, res) => {
+  const { origin, destination, intermediates = [] } = req.body || {};
+
+  const response = await fetch(
+    `${process.env.GOOGLE_ROUTES_BASE_URL}/directions/v2:computeRoutes`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex',
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: origin } },
+        destination: { location: { latLng: destination } },
+        intermediates: intermediates.map((p) => ({ location: { latLng: p } })),
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_AWARE',
+        optimizeWaypointOrder: true,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    return res.status(response.status).json({ error: 'route optimization failed' });
+  }
+
+  const data = await response.json();
+  return res.json(data);
+});
+```
+
+### Expo client call pattern
+
+```js
+fetch(`/api/places/autocomplete?text=${encodeURIComponent('240 coll')}`)
+  .then((r) => r.json())
+  .then((data) => console.log(data.suggestions))
+  .catch((err) => console.error(err));
+```
+
+Use debounce (250-400ms) in the search input, and add loading + empty + error states.
+
 ## AI Assistant Workflow Artifacts
 
 For AI-assisted repository health reviews, use:
