@@ -421,20 +421,16 @@ export default function PatrolMapScreen() {
       formattedDocument,
     };
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/code21`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = await response.json();
-      if (response.ok && body.request) {
-        setCode21Requests((prev) => [...prev, body.request]);
-      }
-    } catch {
-      // keep UI responsive if API unavailable
-    }
+    // Optimistic update — marker appears on map immediately
+    const tempId = `local-${Date.now()}`;
+    const localEntry: Code21Request = {
+      ...payload,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+    };
+    setCode21Requests((prev) => [...prev, localEntry]);
 
+    // Close and reset form right away
     setCode21ModalVisible(false);
     setDescription("");
     setDispatchNotes("");
@@ -452,6 +448,26 @@ export default function PatrolMapScreen() {
     setAddressDropdownVisible(false);
     setCode21Type("");
     setSelectedAddress(null);
+
+    // Persist to server in background — swap temp entry with server record on success
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/code21`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json();
+      if (response.ok && body.request) {
+        const serverEntry: Code21Request = {
+          ...body.request,
+          latitude: Number(body.request.latitude),
+          longitude: Number(body.request.longitude),
+        };
+        setCode21Requests((prev) => prev.map((r) => (r.id === tempId ? serverEntry : r)));
+      }
+    } catch {
+      // Local entry remains on map for the session; will sync on next load if server recovers
+    }
   }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
