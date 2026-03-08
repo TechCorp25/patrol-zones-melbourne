@@ -4,12 +4,40 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { CODE21_TYPES } from "../constants/offenceTypes";
 
+export const ALLOWED_EMAIL_DOMAIN = "melbourne.vic.gov.au";
+
 export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  officerNumber: text("officer_number").notNull().unique(),
   password: text("password").notNull(),
+});
+
+export const registerUserSchema = z.object({
+  email: z
+    .string()
+    .email("Invalid email address")
+    .refine(
+      (val) => val.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`),
+      { message: `Email must end with @${ALLOWED_EMAIL_DOMAIN}` },
+    ),
+  officerNumber: z
+    .string()
+    .min(1, "Officer number is required")
+    .max(32, "Officer number too long"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(256),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+export const loginSchema = z.object({
+  officerNumber: z.string().min(1).max(32),
+  password: z.string().min(1).max(256),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

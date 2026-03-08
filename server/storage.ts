@@ -11,7 +11,9 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUserByOfficerNumber(officerNumber: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: { username: string; email: string; officerNumber: string; password: string }): Promise<User>;
   createSession(userId: string): Promise<Session>;
   getSession(token: string): Promise<Session | undefined>;
   deleteSession(token: string): Promise<void>;
@@ -33,8 +35,21 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
+  async getUserByOfficerNumber(officerNumber: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.officerNumber, officerNumber)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    return result[0];
+  }
+
+  async createUser(insertUser: { username: string; email: string; officerNumber: string; password: string }): Promise<User> {
+    const result = await db.insert(users).values({
+      ...insertUser,
+      email: insertUser.email.toLowerCase(),
+    }).returning();
     return result[0];
   }
 

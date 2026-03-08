@@ -30,14 +30,20 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 - Port 5000
 - **Database**: PostgreSQL via Drizzle ORM (`server/db.ts` + `server/storage.ts` — `DbStorage`)
 - **Tables**: `users`, `code21_requests`, `sessions` (schema in `shared/schema.ts`, managed by Drizzle)
-- **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage
+- **Auth**: Email+officerNumber registration (restricted to `@melbourne.vic.gov.au` TLD), officer number login, session tokens via `sessions` table
+- **Auth Middleware**: `requireAuth` gating all `/api/code21*`, `/api/route`, `/api/elevation` endpoints
+- **Auth Endpoints**: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
+- **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage (auth-gated)
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `app/index.tsx` | Main map screen — GPS, zones, compass, panel, zone info modal |
-| `app/_layout.tsx` | Root layout with fonts, providers |
+| `app/_layout.tsx` | Root layout with fonts, providers, auth gate |
+| `app/login.tsx` | Login screen (officer number + password) |
+| `app/register.tsx` | Registration screen (email, officer number, password, confirm) |
+| `lib/auth-context.tsx` | Auth context provider — login/register/logout, token storage |
 | `constants/zones.ts` | All 15 patrol zone polygon definitions + patrol streets + boundaries + heading labels |
 | `constants/streets.ts` | Melbourne CBD street geometry — 18 streets defined as polylines through real OSM intersection coordinates; `getCurrentStreetPosition()` finds closest segment across all streets |
 | `constants/streetNumbers.ts` | Authoritative street number block ranges (543 markers) from City of Melbourne data; `getStreetNumberMarkers()` generates positioned map markers |
@@ -184,7 +190,17 @@ Applied comprehensive audit fixes across frontend and backend. All verified via 
 - `server/storage.ts` — Fixed SQL injection vulnerability in `searchCode21Archive`: user-supplied `%`, `_`, and `\` characters in ILIKE patterns are now escaped before wrapping in `%...%`
 - `server/storage.ts` — Added `LIMIT 100` to archive search query and `LIMIT 500` to officer number query to prevent unbounded result sets
 
-**Known remaining gap**: Code21 API endpoints (`POST /api/code21`, `GET /api/code21`, `PATCH /api/code21/:id`, `GET /api/code21/archive`) are not gated by session authentication. The auth infrastructure (register/login/session endpoints) exists but is not applied to Code21 routes. This is a pre-existing architectural gap, not a regression.
+**Authentication System (2026-03-08)**
+Full auth system implemented end-to-end:
+- Registration restricted to `@melbourne.vic.gov.au` email addresses, with officer number uniqueness checks
+- Login via officer number + password; session tokens stored in AsyncStorage
+- `requireAuth` middleware gates all Code21, route, and elevation API endpoints (returns 401 without valid Bearer token)
+- Auth context (`lib/auth-context.tsx`) exposes `user`, `token`, `login`, `register`, `logout` across the app
+- Login/register screens with Expo Router navigation and auth gate in `_layout.tsx`
+- Officer number auto-filled from auth context (read-only in Code21 form)
+- PIN toggle and PIN # input become read-only when editing a request that was previously saved with a PIN
+- Service Request # becomes read-only when editing a request that was previously saved with a PIN
+- Logout button in the top bar next to GPS indicator
 
 **Startup Crash Fix (2026-03-08) — React Compiler + Reanimated worklet ordering**
 Fixed `Exception in HostFunction:<unknown>` crash that caused the app to crash immediately after the main screen rendered on iOS Expo Go.

@@ -31,6 +31,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/lib/auth-context";
 import {
   PATROL_ZONES,
   getZoneForLocation,
@@ -56,7 +57,6 @@ const PANEL_MIN = 196;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
-const DEFAULT_OFFICER_NUMBER = "PZ-001";
 const IS_WEB = Platform.OS === "web";
 const API_BASE_URL = IS_WEB ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
 const HEADING_THRESHOLD = 2;
@@ -148,11 +148,13 @@ function getSLAStatus(createdAt: string, nowMs: number): { text: string; level: 
   return { text: h > 0 ? `${h}h${m}m` : `${mins}m`, level: "ok" };
 }
 
-async function fetchElevations(points: { latitude: number; longitude: number }[], apiBase: string): Promise<number[]> {
+async function fetchElevations(points: { latitude: number; longitude: number }[], apiBase: string, authToken?: string | null): Promise<number[]> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
     const res = await fetch(`${apiBase}/api/elevation`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ locations: points }),
       signal: AbortSignal.timeout(6000),
     });
@@ -169,11 +171,12 @@ async function optimiseWithTerrainAndSLA(
   currentLocation: { latitude: number; longitude: number },
   mode: "foot" | "vehicle",
   apiBase: string,
+  authToken?: string | null,
 ): Promise<Code21Request[]> {
   if (requests.length <= 1) return [...requests];
 
   const allPoints = [currentLocation, ...requests.map((r) => ({ latitude: r.latitude, longitude: r.longitude }))];
-  const elevations = await fetchElevations(allPoints, apiBase);
+  const elevations = await fetchElevations(allPoints, apiBase, authToken);
   const officerElev = elevations[0];
   const stopElevs = elevations.slice(1);
   const baseSpeed = mode === "foot" ? 1.39 : 8.33;
@@ -258,7 +261,8 @@ export default function PatrolMapScreen() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [routeOrderedRequests, setRouteOrderedRequests] = useState<Code21Request[]>([]);
   const tabScrollRef = useRef<ScrollView>(null);
-  const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
+  const { user, token, logout } = useAuth();
+  const officerNumber = user?.officerNumber ?? "";
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
   const [offenceDate, setOffenceDate] = useState(getLocalDateString);
   const [offenceTime, setOffenceTime] = useState(getLocalTimeString);
@@ -269,6 +273,7 @@ export default function PatrolMapScreen() {
   const [attendanceNotes, setAttendanceNotes] = useState("");
   const [pinValue, setPinValue] = useState("");
   const [pinIssued, setPinIssued] = useState(false);
+  const [savedWithPin, setSavedWithPin] = useState(false);
   const [vehicleMakeQuery, setVehicleMakeQuery] = useState("");
   const [vehicleColourQuery, setVehicleColourQuery] = useState("");
   const [vehicleMake, setVehicleMake] = useState("");
@@ -506,12 +511,12 @@ export default function PatrolMapScreen() {
         setRouteOrderedRequests([...inProgressRequests]);
         return;
       }
-      void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL)
+      void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL, token)
         .then(setRouteOrderedRequests)
         .catch(() => { setRouteOrderedRequests([...inProgressRequests]); });
     }, 800);
     return () => clearTimeout(timer);
-  }, [inProgressRequests, travelMode]);
+  }, [inProgressRequests, travelMode, token]);
   const filteredVehicleMakes = useMemo(
     () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
     [vehicleMakeQuery],
@@ -593,13 +598,13 @@ export default function PatrolMapScreen() {
     try {
       await fetch(`${API_BASE_URL}/api/code21/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ status: "complete" }),
       });
     } catch {
       // Local state already updated; server will be consistent on next load
     }
-  }, []);
+  }, [token]);
 
   const searchArchive = useCallback(async () => {
     if (!archiveQuery.trim()) {
@@ -609,7 +614,9 @@ export default function PatrolMapScreen() {
     setArchiveLoading(true);
     try {
       const params = new URLSearchParams({ q: archiveQuery.trim() });
-      const response = await fetch(`${API_BASE_URL}/api/code21/archive?${params.toString()}`);
+      const response = await fetch(`${API_BASE_URL}/api/code21/archive?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (response.ok) {
         const data = await response.json() as { requests: Code21Request[] };
         setArchiveResults(data.requests);
@@ -619,7 +626,7 @@ export default function PatrolMapScreen() {
     } finally {
       setArchiveLoading(false);
     }
-  }, [archiveQuery]);
+  }, [archiveQuery, token]);
 
   const fetchOptimisedRoute = useCallback(async (
     orderedRequests: Code21Request[],
@@ -642,7 +649,7 @@ export default function PatrolMapScreen() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/route`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ waypoints, mode }),
       });
       if (response.ok) {
@@ -660,7 +667,7 @@ export default function PatrolMapScreen() {
     } finally {
       setIsFetchingRoute(false);
     }
-  }, []);
+  }, [token]);
 
   const stopNavigation = useCallback(() => {
     setActiveNavRequest(null);
@@ -749,7 +756,7 @@ export default function PatrolMapScreen() {
     const resolvedOffenceType: Code21Type = (code21Type as Code21Type) || "621 - Stopped in no parking";
 
     const payload = {
-      officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER,
+      officerNumber,
       serviceRequestNumber,
       addressLabel: selectedAddress.label,
       latitude: selectedAddress.latitude,
@@ -822,7 +829,7 @@ export default function PatrolMapScreen() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/code21`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload),
       });
       const body = await response.json();
@@ -837,7 +844,7 @@ export default function PatrolMapScreen() {
     } catch {
       // Local entry remains on map for the session; will sync on next load if server recovers
     }
-  }, [attendanceNotes, code21Requests, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Requests, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, token, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback((initialTab: 0 | 1 = 0) => {
     setEditingRequestId(null);
@@ -846,6 +853,7 @@ export default function PatrolMapScreen() {
     setOffenceTime(getLocalTimeString());
     setPinValue("");
     setPinIssued(false);
+    setSavedWithPin(false);
     setOffenceTypeQuery("");
     setAddressQuery("");
     setAddressDropdownVisible(false);
@@ -855,9 +863,11 @@ export default function PatrolMapScreen() {
   }, []);
 
   const loadCode21Requests = useCallback(async () => {
+    if (!token) return;
     try {
-      const params = new URLSearchParams({ officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER });
-      const response = await fetch(`${API_BASE_URL}/api/code21?${params.toString()}`);
+      const response = await fetch(`${API_BASE_URL}/api/code21`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const body = await response.json();
       if (response.ok && Array.isArray(body.requests)) {
         setCode21Requests(body.requests);
@@ -865,7 +875,7 @@ export default function PatrolMapScreen() {
     } catch {
       // ignore offline bootstrap errors
     }
-  }, [officerNumber]);
+  }, [token]);
 
   useEffect(() => {
     loadCode21Requests();
@@ -935,7 +945,6 @@ export default function PatrolMapScreen() {
         setLastSelectedAddress(addr);
         setAddressQuery(request.addressLabel);
         setAddressDropdownVisible(false);
-        setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
         setServiceRequestNumber(request.serviceRequestNumber || "");
         setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
         setOffenceTime(request.offenceTime || request.requestTime.slice(11, 16));
@@ -944,6 +953,7 @@ export default function PatrolMapScreen() {
         setAttendanceNotes(request.attendanceNotes);
         setPinValue(request.pin);
         setPinIssued(!!request.pin);
+        setSavedWithPin(!!request.pin);
         setVehicleMake(request.vehicleMake || "");
         setVehicleColour(request.vehicleColour || "");
         setVehicleRego(request.vehicleRego || "");
@@ -1098,18 +1108,23 @@ export default function PatrolMapScreen() {
             />
             <Text style={styles.appTitle}>PATROL ZONES</Text>
           </View>
-          <View style={styles.gpsChip}>
-            <View
-              style={[
-                styles.gpsDot,
-                { backgroundColor: location ? Colors.dark.success : Colors.dark.warning },
-              ]}
-            />
-            <Text style={styles.gpsText}>
-              {location
-                ? `±${location.accuracy ? Math.round(location.accuracy) : "?"}m`
-                : "Acquiring GPS..."}
-            </Text>
+          <View style={styles.topBarRight}>
+            <View style={styles.gpsChip}>
+              <View
+                style={[
+                  styles.gpsDot,
+                  { backgroundColor: location ? Colors.dark.success : Colors.dark.warning },
+                ]}
+              />
+              <Text style={styles.gpsText}>
+                {location
+                  ? `±${location.accuracy ? Math.round(location.accuracy) : "?"}m`
+                  : "Acquiring GPS..."}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={logout} style={styles.logoutBtn} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Ionicons name="log-out-outline" size={16} color={Colors.dark.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1457,10 +1472,10 @@ export default function PatrolMapScreen() {
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
-                  {/* Row 1: Officer # | Service request # */}
+                  {/* Row 1: Officer # (read-only from auth) | Service request # */}
                   <View style={styles.rowInputs}>
-                    <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
-                    <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, styles.readOnlyInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={serviceRequestNumber} onChangeText={savedWithPin ? undefined : setServiceRequestNumber} editable={!savedWithPin} style={[styles.modalInput, styles.rowInput, savedWithPin && styles.readOnlyInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
                   </View>
 
                   {/* Row 2: Date | Time */}
@@ -1598,19 +1613,20 @@ export default function PatrolMapScreen() {
 
                   {/* PIN toggle */}
                   <TouchableOpacity
-                    style={[styles.pinToggle, pinIssued && styles.pinToggleActive]}
-                    onPress={() => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
-                    activeOpacity={0.8}
+                    style={[styles.pinToggle, pinIssued && styles.pinToggleActive, savedWithPin && styles.pinToggleDisabled]}
+                    onPress={savedWithPin ? undefined : () => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
+                    activeOpacity={savedWithPin ? 1 : 0.8}
+                    disabled={savedWithPin}
                   >
                     <Ionicons
                       name={pinIssued ? "checkmark-circle" : "ellipse-outline"}
                       size={16}
                       color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
                     />
-                    <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued</Text>
+                    <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued{savedWithPin ? " (locked)" : ""}</Text>
                   </TouchableOpacity>
                   {pinIssued && (
-                    <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
+                    <TextInput value={pinValue} onChangeText={savedWithPin ? undefined : setPinValue} editable={!savedWithPin} style={[styles.modalInput, savedWithPin && styles.readOnlyInput]} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
                   )}
 
                   {/* Document preview */}
@@ -1668,7 +1684,6 @@ export default function PatrolMapScreen() {
                                   setLastSelectedAddress(addr);
                                   setAddressQuery(req.addressLabel);
                                   setAddressDropdownVisible(false);
-                                  setOfficerNumber(req.officerNumber || DEFAULT_OFFICER_NUMBER);
                                   setServiceRequestNumber(req.serviceRequestNumber || "");
                                   setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
                                   setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
@@ -1677,6 +1692,7 @@ export default function PatrolMapScreen() {
                                   setAttendanceNotes(req.attendanceNotes);
                                   setPinValue(req.pin);
                                   setPinIssued(!!req.pin);
+                                  setSavedWithPin(!!req.pin);
                                   setVehicleMake(req.vehicleMake || "");
                                   setVehicleColour(req.vehicleColour || "");
                                   setVehicleRego(req.vehicleRego || "");
@@ -2036,6 +2052,14 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 12,
     letterSpacing: 2.5,
+  },
+  topBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  logoutBtn: {
+    padding: 4,
   },
   gpsChip: {
     flexDirection: "row",
@@ -2586,6 +2610,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.tint + "66",
     backgroundColor: Colors.dark.tintDim,
   },
+  pinToggleDisabled: {
+    opacity: 0.6,
+  },
   pinToggleText: {
     fontFamily: "RobotoMono_400Regular",
     color: Colors.dark.textMuted,
@@ -2593,6 +2620,10 @@ const styles = StyleSheet.create({
   },
   pinToggleTextActive: {
     color: Colors.dark.tint,
+  },
+  readOnlyInput: {
+    opacity: 0.5,
+    backgroundColor: Colors.dark.surface,
   },
   acDropdown: {
     borderWidth: 1,

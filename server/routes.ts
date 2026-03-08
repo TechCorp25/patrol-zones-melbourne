@@ -1,6 +1,6 @@
-import { insertCode21RequestSchema, insertUserSchema } from "@shared/schema";
+import { insertCode21RequestSchema, registerUserSchema, loginSchema } from "@shared/schema";
 import type { Code21Status } from "@shared/schema";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "node:http";
 import { z } from "zod";
 import { hashPassword, verifyPassword } from "./auth";
@@ -25,7 +25,6 @@ function buildAuthRateLimiter({
     const current = attempts.get(key);
 
     if (!current || current.resetAt <= now) {
-      // Purge stale entries periodically to prevent unbounded memory growth
       if (attempts.size > 5000) {
         for (const [k, v] of attempts) {
           if (v.resetAt <= now) attempts.delete(k);
@@ -65,15 +64,42 @@ function parseBearerToken(authorizationHeader?: string): string | null {
   return authorizationHeader.slice("Bearer ".length).trim() || null;
 }
 
-const loginSchema = z.object({
-  username: z.string().min(3).max(64),
-  password: z.string().min(8).max(256),
-});
+interface AuthenticatedRequest extends Request {
+  user: { id: string; username: string; officerNumber: string; email: string };
+}
 
+const requireAuth: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+  const token = parseBearerToken(req.header("authorization"));
 
-const listCode21Schema = z.object({
-  officerNumber: z.string().min(1),
-});
+  if (!token) {
+    return res.status(401).json({
+      error: { code: "missing_token", message: "Authentication required." },
+    });
+  }
+
+  const session = await storage.getSession(token);
+  if (!session) {
+    return res.status(401).json({
+      error: { code: "invalid_token", message: "Session expired or invalid." },
+    });
+  }
+
+  const user = await storage.getUser(session.userId);
+  if (!user) {
+    return res.status(401).json({
+      error: { code: "invalid_session", message: "User account not found." },
+    });
+  }
+
+  (req as AuthenticatedRequest).user = {
+    id: user.id,
+    username: user.username,
+    officerNumber: user.officerNumber,
+    email: user.email,
+  };
+
+  return next();
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health/live", (_req, res) => {
@@ -98,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/register", authRateLimiter, async (req, res) => {
-    const parsed = insertUserSchema.safeParse(req.body);
+    const parsed = registerUserSchema.safeParse(req.body);
 
     if (!parsed.success) {
       return res.status(400).json({
@@ -110,20 +136,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    const existingUser = await storage.getUserByUsername(parsed.data.username);
-    if (existingUser) {
+    const { email, officerNumber, password } = parsed.data;
+
+    const existingEmail = await storage.getUserByEmail(email);
+    if (existingEmail) {
       return res.status(409).json({
         error: {
-          code: "username_taken",
-          message: "Username is already in use.",
+          code: "email_taken",
+          message: "This email address is already registered.",
         },
       });
     }
 
-    const password = await hashPassword(parsed.data.password);
+    const existingOfficer = await storage.getUserByOfficerNumber(officerNumber);
+    if (existingOfficer) {
+      return res.status(409).json({
+        error: {
+          code: "officer_number_taken",
+          message: "This officer number is already registered.",
+        },
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
     const user = await storage.createUser({
-      username: parsed.data.username,
-      password,
+      username: officerNumber,
+      email,
+      officerNumber,
+      password: hashedPassword,
     });
 
     const session = await storage.createSession(user.id);
@@ -131,7 +171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(201).json({
       user: {
         id: user.id,
-        username: user.username,
+        officerNumber: user.officerNumber,
+        email: user.email,
       },
       session: {
         token: session.token,
@@ -152,12 +193,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    const user = await storage.getUserByUsername(parsed.data.username);
+    const user = await storage.getUserByOfficerNumber(parsed.data.officerNumber);
     if (!user) {
       return res.status(401).json({
         error: {
           code: "invalid_credentials",
-          message: "Invalid username or password.",
+          message: "Invalid officer number or password.",
         },
       });
     }
@@ -167,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({
         error: {
           code: "invalid_credentials",
-          message: "Invalid username or password.",
+          message: "Invalid officer number or password.",
         },
       });
     }
@@ -177,7 +218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(200).json({
       user: {
         id: user.id,
-        username: user.username,
+        officerNumber: user.officerNumber,
+        email: user.email,
       },
       session: {
         token: session.token,
@@ -195,49 +237,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(204).send();
   });
 
-  app.get("/api/auth/session", async (req, res) => {
-    const token = parseBearerToken(req.header("authorization"));
-
-    if (!token) {
-      return res.status(401).json({
-        error: {
-          code: "missing_token",
-          message: "Missing session token.",
-        },
-      });
-    }
-
-    const session = await storage.getSession(token);
-    if (!session) {
-      return res.status(401).json({
-        error: {
-          code: "invalid_token",
-          message: "Session token is invalid.",
-        },
-      });
-    }
-
-    const user = await storage.getUser(session.userId);
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: "invalid_session",
-          message: "Session is no longer valid.",
-        },
-      });
-    }
-
+  app.get("/api/auth/me", requireAuth, (req, res) => {
+    const authReq = req as AuthenticatedRequest;
     return res.status(200).json({
       user: {
-        id: user.id,
-        username: user.username,
+        id: authReq.user.id,
+        officerNumber: authReq.user.officerNumber,
+        email: authReq.user.email,
       },
     });
   });
 
-
-
-  app.post("/api/code21", async (req, res) => {
+  app.post("/api/code21", requireAuth, async (req, res) => {
     const parsed = insertCode21RequestSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -250,25 +261,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    const created = await storage.createCode21Request(parsed.data);
+    const authReq = req as AuthenticatedRequest;
+    const created = await storage.createCode21Request({
+      ...parsed.data,
+      officerNumber: authReq.user.officerNumber,
+    });
 
     return res.status(201).json({ request: created });
   });
 
-  app.get("/api/code21", async (req, res) => {
-    const parsed = listCode21Schema.safeParse(req.query);
-
-    if (!parsed.success) {
-      return res.status(400).json({
-        error: {
-          code: "validation_error",
-          message: "Missing or invalid officer number.",
-          details: parsed.error.flatten(),
-        },
-      });
-    }
-
-    const requests = await storage.getCode21RequestsByOfficerNumber(parsed.data.officerNumber);
+  app.get("/api/code21", requireAuth, async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const requests = await storage.getCode21RequestsByOfficerNumber(authReq.user.officerNumber);
 
     return res.status(200).json({ requests });
   });
@@ -277,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     q: z.string().min(1).max(64),
   });
 
-  app.get("/api/code21/archive", async (req, res) => {
+  app.get("/api/code21/archive", requireAuth, async (req, res) => {
     const parsed = archiveSearchSchema.safeParse(req.query);
 
     if (!parsed.success) {
@@ -299,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     status: z.enum(["in_progress", "complete"]),
   });
 
-  app.patch("/api/code21/:id", async (req, res) => {
+  app.patch("/api/code21/:id", requireAuth, async (req, res) => {
     const { id } = req.params;
 
     if (!id || typeof id !== "string") {
@@ -356,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     routes?: OsrmRoute[];
   }
 
-  app.post("/api/route", async (req, res) => {
+  app.post("/api/route", requireAuth, async (req, res) => {
     const parsed = routeRequestSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -420,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     locations: z.array(elevationLocationSchema).min(1).max(512),
   });
 
-  app.post("/api/elevation", async (req, res) => {
+  app.post("/api/elevation", requireAuth, async (req, res) => {
     const parsed = elevationRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
