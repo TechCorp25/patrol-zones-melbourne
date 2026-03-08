@@ -1,4 +1,4 @@
-import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
+import { getAllAddressOptions } from "@/constants/streetNumbers";
 
 export interface AddressOption {
   id: string;
@@ -7,11 +7,11 @@ export interface AddressOption {
   longitude: number;
 }
 
-const ADDRESS_OPTIONS: AddressOption[] = getAllStreetNumberMarkers().map((marker) => ({
-  id: `${marker.label}-${marker.lat.toFixed(6)}-${marker.lng.toFixed(6)}`,
-  label: marker.label,
-  latitude: marker.lat,
-  longitude: marker.lng,
+const ADDRESS_OPTIONS: AddressOption[] = getAllAddressOptions().map((opt) => ({
+  id: opt.id,
+  label: opt.label,
+  latitude: opt.lat,
+  longitude: opt.lng,
 }));
 
 const CODE21_TYPES = [

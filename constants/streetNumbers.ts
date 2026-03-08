@@ -547,3 +547,65 @@ const STREET_BLOCKS: StreetBlock[] = [
   { street: "Flinders Street", from: "Spencer Street", to: "Wurundjeri Way", northSide: [600,602,604,606,608,610,612,614,616,618,620,622,624,626,628,630,632,634,636,638,640,642,644,646,648,650,652,654,656,658,660,662,664,666], southSide: [595,597,599,601,603,605,607,609,611,613,615,617,619,621,623,625,627,629,631,633,635,637,639,641,643,645,647,649,651,653,655,657,659,661,663,665,667,669,671,673,675,677,679,681,683,685,687,689,691,693,695,697,699,701] },
   { street: "Flinders Street", from: "Unknown", to: "Unknown", northSide: [399], southSide: [401] },
 ];
+
+export interface StreetAddressOption {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
+let _addressOptions: StreetAddressOption[] | null = null;
+
+export function getAllAddressOptions(): StreetAddressOption[] {
+  if (_addressOptions) return _addressOptions;
+  const options: StreetAddressOption[] = [];
+
+  for (const block of STREET_BLOCKS) {
+    const ptFrom = findIntersectionPoint(block.street, block.from);
+    const ptTo = findIntersectionPoint(block.street, block.to);
+    if (!ptFrom || !ptTo) continue;
+
+    const street = STREET_INTERSECTIONS.find(
+      s => normalizeStreetName(s.name) === normalizeStreetName(block.street),
+    );
+    if (!street) continue;
+
+    const sides: { key: 'northSide' | 'southSide' | 'eastSide' | 'westSide'; latOff: number; lngOff: number }[] =
+      street.orientation === 'ew'
+        ? [
+            { key: 'northSide', latOff: SIDE_OFFSET_LAT, lngOff: 0 },
+            { key: 'southSide', latOff: -SIDE_OFFSET_LAT, lngOff: 0 },
+          ]
+        : [
+            { key: 'eastSide', latOff: 0, lngOff: SIDE_OFFSET_LNG },
+            { key: 'westSide', latOff: 0, lngOff: -SIDE_OFFSET_LNG },
+          ];
+
+    for (const { key, latOff, lngOff } of sides) {
+      const nums = block[key];
+      if (!nums || nums.length === 0) continue;
+
+      const lo = nums[0];
+      const hi = nums[nums.length - 1];
+      const range = hi - lo;
+
+      for (const num of nums) {
+        const t = range > 0 ? (num - lo) / range : 0.5;
+        const frac = 0.08 + t * 0.84;
+        const lat = ptFrom.lat + (ptTo.lat - ptFrom.lat) * frac + latOff;
+        const lng = ptFrom.lng + (ptTo.lng - ptFrom.lng) * frac + lngOff;
+        const label = `${num} ${block.street}`;
+        options.push({
+          id: `addr-${label}-${lat.toFixed(5)}`,
+          label,
+          lat,
+          lng,
+        });
+      }
+    }
+  }
+
+  _addressOptions = options;
+  return options;
+}
