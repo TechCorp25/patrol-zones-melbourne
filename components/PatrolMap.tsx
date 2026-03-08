@@ -16,6 +16,7 @@ export interface PatrolMapProps {
   assignedZoneId: string | null;
   destinations?: { id: string; latitude: number; longitude: number; title: string; subtitle?: string }[];
   onDestinationPress?: (destinationId: string) => void;
+  previewPin?: { latitude: number; longitude: number; label: string } | null;
   mapType?: string;
   onMapReady?: () => void;
 }
@@ -174,7 +175,7 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
 });
 
 const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
-  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, mapType, onMapReady },
+  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, previewPin, mapType, onMapReady },
   ref,
 ) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
@@ -216,6 +217,16 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
             onPress={() => onDestinationPress?.(destination.id)}
           />
         ))}
+
+        {previewPin && (
+          <Marker
+            key="preview-pin"
+            coordinate={{ latitude: previewPin.latitude, longitude: previewPin.longitude }}
+            pinColor={Colors.dark.tint}
+            title={previewPin.label}
+            description="Code 21 address"
+          />
+        )}
 
         {location && (
           <>

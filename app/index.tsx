@@ -65,6 +65,23 @@ const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
 const SPRING_CONFIG = { damping: 20, stiffness: 180, overshootClamping: true };
 
+function getLocalDateString(): string {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function getLocalTimeString(): string {
+  const now = new Date();
+  return [
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+  ].join(':');
+}
+
 export default function PatrolMapScreen() {
   const insets = useSafeAreaInsets();
 
@@ -86,15 +103,15 @@ export default function PatrolMapScreen() {
   const [mapTypeIndex, setMapTypeIndex] = useState(0);
   const [code21ModalVisible, setCode21ModalVisible] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
+  const [lastSelectedAddress, setLastSelectedAddress] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [addressSuggestions, setAddressSuggestions] = useState(() => searchAddressOptions(""));
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
-  const [requestTime, setRequestTime] = useState(new Date().toISOString().slice(0, 16));
-  const [offenceDate, setOffenceDate] = useState(new Date().toISOString().slice(0, 10));
-  const [offenceTime, setOffenceTime] = useState(new Date().toISOString().slice(11, 16));
+  const [offenceDate, setOffenceDate] = useState(getLocalDateString);
+  const [offenceTime, setOffenceTime] = useState(getLocalTimeString);
   const [code21Type, setCode21Type] = useState<Code21Type>("621 - Stopped in no parking");
+  const [offenceTypeQuery, setOffenceTypeQuery] = useState("");
   const [description, setDescription] = useState("");
   const [dispatchNotes, setDispatchNotes] = useState("");
   const [attendanceNotes, setAttendanceNotes] = useState("");
@@ -312,13 +329,45 @@ export default function PatrolMapScreen() {
     return optimiseCode21Route(location, code21Requests);
   }, [location, code21Requests]);
   const filteredVehicleMakes = useMemo(
-    () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 6),
+    () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
     [vehicleMakeQuery],
   );
   const filteredVehicleColours = useMemo(
-    () => searchFilterOptions(vehicleColourQuery, getVehicleColours(), 6),
+    () => searchFilterOptions(vehicleColourQuery, getVehicleColours(), 3),
     [vehicleColourQuery],
   );
+  const filteredOffenceTypes = useMemo((): Code21Type[] => {
+    if (!offenceTypeQuery.trim()) return [];
+    return searchFilterOptions(offenceTypeQuery, getCode21Types(), 3) as Code21Type[];
+  }, [offenceTypeQuery]);
+  const addressSuggestionsComputed = useMemo(() => {
+    const results = searchAddressOptions(addressQuery, 5);
+    if (!lastSelectedAddress) return results;
+    const alreadyIncluded = results.some((r) => r.label === lastSelectedAddress.label);
+    if (alreadyIncluded) return results;
+    if (
+      !addressQuery.trim() ||
+      lastSelectedAddress.label.toLowerCase().includes(addressQuery.trim().toLowerCase())
+    ) {
+      return [
+        {
+          id: `prev-${lastSelectedAddress.label}`,
+          label: lastSelectedAddress.label,
+          latitude: lastSelectedAddress.latitude,
+          longitude: lastSelectedAddress.longitude,
+        },
+        ...results.slice(0, 4),
+      ];
+    }
+    return results;
+  }, [addressQuery, lastSelectedAddress]);
+  const isoRequestTime = useMemo(() => {
+    try {
+      const dt = new Date(`${offenceDate}T${offenceTime}:00`);
+      if (!isNaN(dt.getTime())) return dt.toISOString();
+    } catch { /* ignore */ }
+    return new Date().toISOString();
+  }, [offenceDate, offenceTime]);
 
   const formattedDocument = useMemo(() => {
     const fields = [
@@ -348,9 +397,7 @@ export default function PatrolMapScreen() {
       addressLabel: selectedAddress.label,
       latitude: selectedAddress.latitude,
       longitude: selectedAddress.longitude,
-      requestTime: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(requestTime)
-        ? new Date(requestTime + ':00Z').toISOString()
-        : new Date(requestTime).toISOString(),
+      requestTime: isoRequestTime,
       offenceDate,
       offenceTime,
       offenceType: code21Type,
@@ -392,14 +439,17 @@ export default function PatrolMapScreen() {
     setVehicleRego("");
     setVehicleMakeQuery("");
     setVehicleColourQuery("");
-  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, requestTime, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+    setOffenceTypeQuery("");
+    setAddressQuery("");
+  }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
-    setRequestTime(new Date().toISOString().slice(0, 16));
-    setOffenceDate(new Date().toISOString().slice(0, 10));
-    setOffenceTime(new Date().toISOString().slice(11, 16));
+    setOffenceDate(getLocalDateString());
+    setOffenceTime(getLocalTimeString());
     setPinValue("");
     setPinIssued(false);
+    setOffenceTypeQuery("");
+    setAddressQuery("");
     setCode21ModalVisible(true);
   }, []);
 
@@ -544,7 +594,6 @@ export default function PatrolMapScreen() {
             });
             setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
             setServiceRequestNumber(request.serviceRequestNumber || "");
-            setRequestTime(request.requestTime.slice(0, 16));
             setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
             setOffenceTime(request.offenceTime || request.requestTime.slice(11, 16));
             setCode21Type(request.offenceType || request.code21Type);
@@ -557,11 +606,20 @@ export default function PatrolMapScreen() {
             setVehicleRego(request.vehicleRego || "");
             setVehicleMakeQuery(request.vehicleMake || "");
             setVehicleColourQuery(request.vehicleColour || "");
+            setOffenceTypeQuery("");
+            const addr = {
+              label: request.addressLabel,
+              latitude: request.latitude,
+              longitude: request.longitude,
+            };
+            setLastSelectedAddress(addr);
+            setAddressQuery(request.addressLabel);
             setDescription(request.description);
             setTravelMode(request.travelMode);
             setCode21ModalVisible(true);
           }
         }}
+        previewPin={selectedAddress && code21ModalVisible ? selectedAddress : null}
         mapType={MAP_TYPES[mapTypeIndex] as any}
         onMapReady={() => {}}
       />
@@ -880,96 +938,143 @@ export default function PatrolMapScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false}>
-              <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={styles.modalInput} placeholder="Officer number" placeholderTextColor={Colors.dark.textMuted} />
-              <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={styles.modalInput} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
+            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+              {/* Row 1: Officer # | Service request # */}
+              <View style={styles.rowInputs}>
+                <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
+                <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
+              </View>
+
+              {/* Row 2: Date | Time (local defaults) */}
               <View style={styles.rowInputs}>
                 <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
                 <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
               </View>
-              <TextInput
-                value={addressQuery}
-                onChangeText={(text) => {
-                  setAddressQuery(text);
-                  setAddressSuggestions(searchAddressOptions(text));
-                }}
-                placeholder="Search code21 address"
-                placeholderTextColor={Colors.dark.textMuted}
-                style={styles.modalInput}
-              />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
-                {addressSuggestions.map((option) => (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={styles.searchResultChip}
-                    onPress={() => {
-                      setSelectedAddress({ label: option.label, latitude: option.latitude, longitude: option.longitude });
-                      setAddressQuery(option.label);
-                    }}
-                  >
-                    <Text style={styles.searchResultText}>{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
 
-              <Text style={styles.modalAddress}>{selectedAddress?.label ?? "No address selected"}</Text>
-              <TextInput value={requestTime} onChangeText={setRequestTime} style={styles.modalInput} placeholder="Request time (YYYY-MM-DDTHH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+              {/* Row 3: Address search — type-to-filter, City of Melbourne, prev first */}
+              <View>
+                <TextInput
+                  value={addressQuery}
+                  onChangeText={setAddressQuery}
+                  placeholder="Search address..."
+                  placeholderTextColor={Colors.dark.textMuted}
+                  style={styles.modalInput}
+                />
+                {addressSuggestionsComputed.length > 0 && (
+                  <View style={styles.acDropdown}>
+                    {addressSuggestionsComputed.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        style={styles.acItem}
+                        onPress={() => {
+                          const addr = { label: option.label, latitude: option.latitude, longitude: option.longitude };
+                          setSelectedAddress(addr);
+                          setLastSelectedAddress(addr);
+                          setAddressQuery(option.label);
+                        }}
+                      >
+                        <Ionicons name="location-outline" size={12} color={Colors.dark.tint} style={{ marginRight: 6 }} />
+                        <Text style={styles.acItemText} numberOfLines={1}>{option.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Offence type — autocomplete, max 3 */}
               <Text style={styles.modalFieldLabel}>Offence type</Text>
-              <ScrollView style={styles.typeScrollView} nestedScrollEnabled>
-                <View style={styles.typeRow}>
-                  {getCode21Types().map((type) => (
-                    <TouchableOpacity key={type} style={[styles.typeChip, code21Type === type && styles.typeChipActive]} onPress={() => setCode21Type(type)}>
-                      <Text style={styles.typeChipText}>{type}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-              <TextInput value={description} onChangeText={setDescription} style={styles.modalInput} placeholder="Code21 description" placeholderTextColor={Colors.dark.textMuted} />
+              <View>
+                <TextInput
+                  value={offenceTypeQuery}
+                  onChangeText={setOffenceTypeQuery}
+                  placeholder={code21Type}
+                  placeholderTextColor={Colors.dark.tint}
+                  style={styles.modalInput}
+                />
+                {filteredOffenceTypes.length > 0 && (
+                  <View style={styles.acDropdown}>
+                    {filteredOffenceTypes.map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={styles.acItem}
+                        onPress={() => { setCode21Type(type); setOffenceTypeQuery(""); }}
+                      >
+                        <Text style={styles.acItemText}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Dispatch notes */}
               <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
-              <Text style={styles.modalFieldLabel}>Vehicle details</Text>
-              <TextInput
-                value={vehicleMakeQuery}
-                onChangeText={(text) => {
-                  setVehicleMakeQuery(text);
-                  setVehicleMake(text);
-                }}
-                style={styles.modalInput}
-                placeholder="Vehicle make"
-                placeholderTextColor={Colors.dark.textMuted}
-              />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
-                {filteredVehicleMakes.map((make) => (
-                  <TouchableOpacity key={make} style={styles.searchResultChip} onPress={() => { setVehicleMake(make); setVehicleMakeQuery(make); }}>
-                    <Text style={styles.searchResultText}>{make}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TextInput
-                value={vehicleColourQuery}
-                onChangeText={(text) => {
-                  setVehicleColourQuery(text);
-                  setVehicleColour(text);
-                }}
-                style={styles.modalInput}
-                placeholder="Vehicle colour"
-                placeholderTextColor={Colors.dark.textMuted}
-              />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchResultsRow}>
-                {filteredVehicleColours.map((colour) => (
-                  <TouchableOpacity key={colour} style={styles.searchResultChip} onPress={() => { setVehicleColour(colour); setVehicleColourQuery(colour); }}>
-                    <Text style={styles.searchResultText}>{colour}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TextInput value={vehicleRego} onChangeText={setVehicleRego} autoCapitalize="characters" style={styles.modalInput} placeholder="Vehicle rego" placeholderTextColor={Colors.dark.textMuted} />
+
+              {/* Vehicle make — full-width autocomplete */}
+              <View>
+                <TextInput
+                  value={vehicleMakeQuery}
+                  onChangeText={(text) => { setVehicleMakeQuery(text); setVehicleMake(text); }}
+                  style={styles.modalInput}
+                  placeholder={vehicleMake || "Vehicle make"}
+                  placeholderTextColor={vehicleMake ? Colors.dark.tint : Colors.dark.textMuted}
+                />
+                {vehicleMakeQuery.length > 0 && filteredVehicleMakes.length > 0 && (
+                  <View style={styles.acDropdown}>
+                    {filteredVehicleMakes.map((make) => (
+                      <TouchableOpacity
+                        key={make}
+                        style={styles.acItem}
+                        onPress={() => { setVehicleMake(make); setVehicleMakeQuery(""); }}
+                      >
+                        <Text style={styles.acItemText}>{make}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Vehicle rego (left) | Vehicle colour autocomplete (right) */}
+              <View style={styles.rowInputs}>
+                <TextInput
+                  value={vehicleRego}
+                  onChangeText={setVehicleRego}
+                  autoCapitalize="characters"
+                  style={[styles.modalInput, styles.rowInput]}
+                  placeholder="Rego"
+                  placeholderTextColor={Colors.dark.textMuted}
+                />
+                <View style={styles.rowInput}>
+                  <TextInput
+                    value={vehicleColourQuery}
+                    onChangeText={(text) => { setVehicleColourQuery(text); setVehicleColour(text); }}
+                    style={styles.modalInput}
+                    placeholder={vehicleColour || "Colour"}
+                    placeholderTextColor={vehicleColour ? Colors.dark.tint : Colors.dark.textMuted}
+                  />
+                  {vehicleColourQuery.length > 0 && filteredVehicleColours.length > 0 && (
+                    <View style={styles.acDropdown}>
+                      {filteredVehicleColours.map((colour) => (
+                        <TouchableOpacity
+                          key={colour}
+                          style={styles.acItem}
+                          onPress={() => { setVehicleColour(colour); setVehicleColourQuery(""); }}
+                        >
+                          <Text style={styles.acItemText}>{colour}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Attendance notes */}
               <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
+
+              {/* PIN toggle + conditional input */}
               <TouchableOpacity
                 style={[styles.pinToggle, pinIssued && styles.pinToggleActive]}
-                onPress={() => {
-                  const next = !pinIssued;
-                  setPinIssued(next);
-                  if (!next) setPinValue("");
-                }}
+                onPress={() => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
                 activeOpacity={0.8}
               >
                 <Ionicons
@@ -977,28 +1082,24 @@ export default function PatrolMapScreen() {
                   size={16}
                   color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
                 />
-                <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>
-                  PIN issued
-                </Text>
+                <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued</Text>
               </TouchableOpacity>
               {pinIssued && (
-                <TextInput
-                  value={pinValue}
-                  onChangeText={setPinValue}
-                  style={styles.modalInput}
-                  placeholder="PIN #"
-                  placeholderTextColor={Colors.dark.textMuted}
-                  keyboardType="number-pad"
-                />
+                <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
               )}
+
+              {/* Formatted document preview */}
               <View style={styles.documentPreview}>
-                <Text style={styles.modalFieldLabel}>Formatted document preview</Text>
+                <Text style={styles.modalFieldLabel}>Document preview</Text>
                 <Text style={styles.documentPreviewText}>{formattedDocument}</Text>
               </View>
+
+              {/* Travel mode */}
               <View style={styles.travelRow}>
                 <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
                 <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
               </View>
+
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -1683,6 +1784,31 @@ const styles = StyleSheet.create({
   },
   pinToggleTextActive: {
     color: Colors.dark.tint,
+  },
+  acDropdown: {
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    backgroundColor: Colors.dark.surface,
+    overflow: 'hidden',
+    marginTop: -1,
+    marginBottom: 2,
+  },
+  acItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
+  },
+  acItemText: {
+    fontFamily: 'RobotoMono_400Regular',
+    color: Colors.dark.text,
+    fontSize: 11,
+    flex: 1,
   },
   travelRow: {
     flexDirection: 'row',
