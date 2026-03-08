@@ -18,10 +18,10 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 
 ### Frontend (Expo + React Native)
 - **Framework**: Expo SDK 54, Expo Router (file-based routing)
-- **Maps**: react-native-maps@1.18.0 (pinned — required)
+- **Maps**: react-native-maps@1.18.0 (pinned — required for Expo Go iOS compatibility; 1.20.x+ crashes Expo Go with New Architecture)
 - **Location**: expo-location (GPS + heading watchdog)
 - **Fonts**: @expo-google-fonts/roboto-mono
-- **Animation**: react-native-reanimated
+- **Animation**: react-native-reanimated@3.17.5 (pinned at 3.x — 4.x requires New Architecture which breaks Expo Go)
 - **Storage**: @react-native-async-storage/async-storage
 - **Icons**: @expo/vector-icons (Ionicons, MaterialCommunityIcons)
 
