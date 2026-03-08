@@ -13,6 +13,7 @@ import {
   PanResponder,
   TextInput,
   Modal,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -105,12 +106,15 @@ export default function PatrolMapScreen() {
   const [selectedAddress, setSelectedAddress] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [lastSelectedAddress, setLastSelectedAddress] = useState<{ label: string; latitude: number; longitude: number } | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
+  const [addressDropdownVisible, setAddressDropdownVisible] = useState(false);
+  const [documentViewRequest, setDocumentViewRequest] = useState<Code21Request | null>(null);
+  const [documentViewVisible, setDocumentViewVisible] = useState(false);
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
   const [offenceDate, setOffenceDate] = useState(getLocalDateString);
   const [offenceTime, setOffenceTime] = useState(getLocalTimeString);
-  const [code21Type, setCode21Type] = useState<Code21Type>("621 - Stopped in no parking");
+  const [code21Type, setCode21Type] = useState<Code21Type | "">("");
   const [offenceTypeQuery, setOffenceTypeQuery] = useState("");
   const [description, setDescription] = useState("");
   const [dispatchNotes, setDispatchNotes] = useState("");
@@ -389,7 +393,11 @@ export default function PatrolMapScreen() {
   }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
 
   const submitCode21 = useCallback(async () => {
-    if (!selectedAddress) return;
+    if (!selectedAddress) {
+      Alert.alert("Address required", "Please search and select an address before saving.");
+      return;
+    }
+    const resolvedOffenceType: Code21Type = (code21Type as Code21Type) || "621 - Stopped in no parking";
 
     const payload = {
       officerNumber: officerNumber || DEFAULT_OFFICER_NUMBER,
@@ -400,8 +408,8 @@ export default function PatrolMapScreen() {
       requestTime: isoRequestTime,
       offenceDate,
       offenceTime,
-      offenceType: code21Type,
-      code21Type,
+      offenceType: resolvedOffenceType,
+      code21Type: resolvedOffenceType,
       dispatchNotes,
       attendanceNotes,
       pin: pinIssued ? pinValue : "",
@@ -441,6 +449,9 @@ export default function PatrolMapScreen() {
     setVehicleColourQuery("");
     setOffenceTypeQuery("");
     setAddressQuery("");
+    setAddressDropdownVisible(false);
+    setCode21Type("");
+    setSelectedAddress(null);
   }, [attendanceNotes, code21Type, description, dispatchNotes, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
   const openCode21Modal = useCallback(() => {
@@ -450,6 +461,9 @@ export default function PatrolMapScreen() {
     setPinIssued(false);
     setOffenceTypeQuery("");
     setAddressQuery("");
+    setAddressDropdownVisible(false);
+    setCode21Type("");
+    setSelectedAddress(null);
     setCode21ModalVisible(true);
   }, []);
 
@@ -587,11 +601,15 @@ export default function PatrolMapScreen() {
         onDestinationPress={(destinationId) => {
           const request = code21Requests.find((entry) => entry.id === destinationId);
           if (request) {
-            setSelectedAddress({
+            const addr = {
               label: request.addressLabel,
               latitude: request.latitude,
               longitude: request.longitude,
-            });
+            };
+            setSelectedAddress(addr);
+            setLastSelectedAddress(addr);
+            setAddressQuery(request.addressLabel);
+            setAddressDropdownVisible(false);
             setOfficerNumber(request.officerNumber || DEFAULT_OFFICER_NUMBER);
             setServiceRequestNumber(request.serviceRequestNumber || "");
             setOffenceDate(request.offenceDate || request.requestTime.slice(0, 10));
@@ -607,16 +625,16 @@ export default function PatrolMapScreen() {
             setVehicleMakeQuery(request.vehicleMake || "");
             setVehicleColourQuery(request.vehicleColour || "");
             setOffenceTypeQuery("");
-            const addr = {
-              label: request.addressLabel,
-              latitude: request.latitude,
-              longitude: request.longitude,
-            };
-            setLastSelectedAddress(addr);
-            setAddressQuery(request.addressLabel);
             setDescription(request.description);
             setTravelMode(request.travelMode);
             setCode21ModalVisible(true);
+          }
+        }}
+        onDestinationLongPress={(destinationId) => {
+          const request = code21Requests.find((entry) => entry.id === destinationId);
+          if (request) {
+            setDocumentViewRequest(request);
+            setDocumentViewVisible(true);
           }
         }}
         previewPin={selectedAddress && code21ModalVisible ? selectedAddress : null}
@@ -956,12 +974,16 @@ export default function PatrolMapScreen() {
               <View>
                 <TextInput
                   value={addressQuery}
-                  onChangeText={setAddressQuery}
-                  placeholder="Search address..."
-                  placeholderTextColor={Colors.dark.textMuted}
+                  onChangeText={(text) => {
+                    setAddressQuery(text);
+                    setAddressDropdownVisible(true);
+                  }}
+                  onFocus={() => setAddressDropdownVisible(true)}
+                  placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
+                  placeholderTextColor={selectedAddress ? Colors.dark.tint : Colors.dark.textMuted}
                   style={styles.modalInput}
                 />
-                {addressSuggestionsComputed.length > 0 && (
+                {addressDropdownVisible && addressSuggestionsComputed.length > 0 && (
                   <View style={styles.acDropdown}>
                     {addressSuggestionsComputed.map((option) => (
                       <TouchableOpacity
@@ -972,6 +994,13 @@ export default function PatrolMapScreen() {
                           setSelectedAddress(addr);
                           setLastSelectedAddress(addr);
                           setAddressQuery(option.label);
+                          setAddressDropdownVisible(false);
+                          mapRef.current?.animateToRegion({
+                            latitude: option.latitude,
+                            longitude: option.longitude,
+                            latitudeDelta: 0.002,
+                            longitudeDelta: 0.002,
+                          }, 600);
                         }}
                       >
                         <Ionicons name="location-outline" size={12} color={Colors.dark.tint} style={{ marginRight: 6 }} />
@@ -988,8 +1017,8 @@ export default function PatrolMapScreen() {
                 <TextInput
                   value={offenceTypeQuery}
                   onChangeText={setOffenceTypeQuery}
-                  placeholder={code21Type}
-                  placeholderTextColor={Colors.dark.tint}
+                  placeholder={code21Type || "Select offence"}
+                  placeholderTextColor={code21Type ? Colors.dark.tint : Colors.dark.textMuted}
                   style={styles.modalInput}
                 />
                 {filteredOffenceTypes.length > 0 && (
@@ -1118,6 +1147,34 @@ export default function PatrolMapScreen() {
           ))}
         </View>
       )}
+
+      {/* ── Document View Modal (long-press on marker) ── */}
+      <Modal visible={documentViewVisible} transparent animationType="fade" onRequestClose={() => setDocumentViewVisible(false)} statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderBar} />
+              <View style={styles.modalHeaderTextWrap}>
+                <Text style={styles.modalTitle}>CODE21 DOCUMENT</Text>
+                <Text style={styles.modalSubtitle}>{documentViewRequest?.addressLabel ?? ""}</Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setDocumentViewVisible(false)} activeOpacity={0.8}>
+                <Ionicons name="close" size={22} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.documentPreview}>
+                <Text style={styles.documentPreviewText}>{documentViewRequest?.formattedDocument ?? ""}</Text>
+              </View>
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSave} onPress={() => setDocumentViewVisible(false)}>
+                <Text style={styles.modalSaveText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Zone Info Modal ── */}
       <ZoneInfoModal

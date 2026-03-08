@@ -16,6 +16,7 @@ export interface PatrolMapProps {
   assignedZoneId: string | null;
   destinations?: { id: string; latitude: number; longitude: number; title: string; subtitle?: string }[];
   onDestinationPress?: (destinationId: string) => void;
+  onDestinationLongPress?: (destinationId: string) => void;
   previewPin?: { latitude: number; longitude: number; label: string } | null;
   mapType?: string;
   onMapReady?: () => void;
@@ -175,7 +176,7 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
 });
 
 const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
-  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, previewPin, mapType, onMapReady },
+  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady },
   ref,
 ) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
@@ -215,6 +216,7 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
             title={destination.title}
             description={destination.subtitle}
             onPress={() => onDestinationPress?.(destination.id)}
+            onCalloutPress={() => onDestinationLongPress?.(destination.id)}
           />
         ))}
 
