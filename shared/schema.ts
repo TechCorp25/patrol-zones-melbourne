@@ -39,6 +39,7 @@ export const code21Requests = pgTable("code21_requests", {
   travelMode: text("travel_mode").notNull(),
   description: text("description").notNull(),
   formattedDocument: text("formatted_document").notNull().default(""),
+  status: text("status").notNull().default("in_progress"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -121,9 +122,11 @@ export const insertCode21RequestSchema = createInsertSchema(code21Requests)
     vehicleRego: z.string().optional().default(""),
     formattedDocument: z.string().optional().default(""),
     travelMode: z.enum(["foot", "vehicle"]),
+    status: z.enum(["in_progress", "complete"]).optional().default("in_progress"),
   });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCode21Request = z.infer<typeof insertCode21RequestSchema>;
 export type Code21Request = InsertCode21Request & { id: string; createdAt: string };
+export type Code21Status = "in_progress" | "complete";

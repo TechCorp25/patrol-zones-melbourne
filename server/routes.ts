@@ -1,4 +1,5 @@
 import { insertCode21RequestSchema, insertUserSchema } from "@shared/schema";
+import type { Code21Status } from "@shared/schema";
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "node:http";
 import { z } from "zod";
@@ -264,6 +265,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const requests = await storage.getCode21RequestsByOfficerNumber(parsed.data.officerNumber);
 
     return res.status(200).json({ requests });
+  });
+
+  const patchCode21Schema = z.object({
+    status: z.enum(["in_progress", "complete"]),
+  });
+
+  app.patch("/api/code21/:id", async (req, res) => {
+    const { id } = req.params;
+
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({
+        error: { code: "invalid_id", message: "Missing or invalid request ID." },
+      });
+    }
+
+    const parsed = patchCode21Schema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid patch payload.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const updated = await storage.updateCode21RequestStatus(id, parsed.data.status as Code21Status);
+
+    if (!updated) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    return res.status(200).json({ request: updated });
   });
 
   const httpServer = createServer(app);

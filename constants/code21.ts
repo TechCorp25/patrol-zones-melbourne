@@ -102,6 +102,7 @@ export interface Code21Request {
   travelMode: "foot" | "vehicle";
   description: string;
   formattedDocument: string;
+  status: "in_progress" | "complete";
   createdAt: string;
 }
 

@@ -111,6 +111,8 @@ export default function PatrolMapScreen() {
   const [documentViewVisible, setDocumentViewVisible] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [code21Requests, setCode21Requests] = useState<Code21Request[]>([]);
+  const [activeModalTab, setActiveModalTab] = useState<0 | 1>(0);
+  const tabScrollRef = useRef<ScrollView>(null);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
   const [offenceDate, setOffenceDate] = useState(getLocalDateString);
@@ -329,10 +331,15 @@ export default function PatrolMapScreen() {
     return getParkingZones(streetPosition.street, streetPosition.from, streetPosition.to);
   }, [streetPosition]);
 
+  const inProgressRequests = useMemo(
+    () => code21Requests.filter((r) => r.status !== "complete"),
+    [code21Requests],
+  );
+
   const routeOrderedRequests = useMemo(() => {
-    if (!location || code21Requests.length === 0) return code21Requests;
-    return optimiseCode21Route(location, code21Requests);
-  }, [location, code21Requests]);
+    if (!location || inProgressRequests.length === 0) return inProgressRequests;
+    return optimiseCode21Route(location, inProgressRequests);
+  }, [location, inProgressRequests]);
   const filteredVehicleMakes = useMemo(
     () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
     [vehicleMakeQuery],
@@ -393,6 +400,34 @@ export default function PatrolMapScreen() {
     return fields.join("\n");
   }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
 
+  const modalContentWidth = useMemo(
+    () => Math.min(Dimensions.get("window").width - 40, 420),
+    [],
+  );
+
+  const scrollToTab = useCallback(
+    (tab: 0 | 1) => {
+      tabScrollRef.current?.scrollTo({ x: tab * modalContentWidth, animated: true });
+      setActiveModalTab(tab);
+    },
+    [modalContentWidth],
+  );
+
+  const markCode21Complete = useCallback(async (id: string) => {
+    setCode21Requests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: "complete" as const } : r)),
+    );
+    try {
+      await fetch(`${API_BASE_URL}/api/code21/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "complete" }),
+      });
+    } catch {
+      // Local state already updated; server will be consistent on next load
+    }
+  }, []);
+
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) {
       Alert.alert("Address required", "Please search and select an address before saving.");
@@ -445,10 +480,12 @@ export default function PatrolMapScreen() {
 
     if (editingRequestId !== null) {
       // Editing an existing request — update the local entry in place, no new server record
+      const existing = code21Requests.find((r) => r.id === editingRequestId);
       const updatedEntry: Code21Request = {
         ...payload,
         id: editingRequestId,
-        createdAt: new Date().toISOString(),
+        status: existing?.status ?? "in_progress",
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
       };
       setCode21Requests((prev) =>
         prev.map((r) => (r.id === editingRequestId ? updatedEntry : r))
@@ -462,6 +499,7 @@ export default function PatrolMapScreen() {
     const localEntry: Code21Request = {
       ...payload,
       id: tempId,
+      status: "in_progress",
       createdAt: new Date().toISOString(),
     };
     setCode21Requests((prev) => [...prev, localEntry]);
@@ -486,10 +524,11 @@ export default function PatrolMapScreen() {
     } catch {
       // Local entry remains on map for the session; will sync on next load if server recovers
     }
-  }, [attendanceNotes, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Requests, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, travelMode, vehicleColour, vehicleMake, vehicleRego]);
 
-  const openCode21Modal = useCallback(() => {
+  const openCode21Modal = useCallback((initialTab: 0 | 1 = 0) => {
     setEditingRequestId(null);
+    setActiveModalTab(initialTab);
     setOffenceDate(getLocalDateString());
     setOffenceTime(getLocalTimeString());
     setPinValue("");
@@ -518,6 +557,15 @@ export default function PatrolMapScreen() {
   useEffect(() => {
     loadCode21Requests();
   }, [loadCode21Requests]);
+
+  useEffect(() => {
+    if (!code21ModalVisible) return;
+    const timeout = setTimeout(() => {
+      tabScrollRef.current?.scrollTo({ x: activeModalTab * modalContentWidth, animated: false });
+    }, 50);
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code21ModalVisible]);
 
   // ── Web fallback ──────────────────────────────────────────────────
   if (IS_WEB) {
@@ -663,6 +711,7 @@ export default function PatrolMapScreen() {
             setDescription(request.description);
             setTravelMode(request.travelMode);
             setEditingRequestId(request.id);
+            setActiveModalTab(0);
             setCode21ModalVisible(true);
           }
         }}
@@ -788,7 +837,7 @@ export default function PatrolMapScreen() {
         <View style={styles.quickActionsCol}>
           <TouchableOpacity
             style={styles.code21Btn}
-            onPress={openCode21Modal}
+            onPress={() => openCode21Modal()}
             activeOpacity={0.8}
           >
             <Text style={styles.code21BtnText}>21</Text>
@@ -981,6 +1030,8 @@ export default function PatrolMapScreen() {
       <Modal visible={code21ModalVisible} transparent animationType="fade" onRequestClose={() => { setCode21ModalVisible(false); setEditingRequestId(null); }} statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+
+            {/* ── Header ── */}
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderBar} />
               <View style={styles.modalHeaderTextWrap}>
@@ -992,185 +1043,297 @@ export default function PatrolMapScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* ── Tab Bar ── */}
+            <View style={styles.modalTabBar}>
+              <TouchableOpacity
+                style={[styles.modalTab, activeModalTab === 0 && styles.modalTabActive]}
+                onPress={() => scrollToTab(0)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modalTabText, activeModalTab === 0 && styles.modalTabTextActive]}>
+                  {editingRequestId ? "EDIT REQUEST" : "NEW REQUEST"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalTab, activeModalTab === 1 && styles.modalTabActive]}
+                onPress={() => scrollToTab(1)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modalTabText, activeModalTab === 1 && styles.modalTabTextActive]}>
+                  {`IN PROGRESS${inProgressRequests.length > 0 ? ` (${inProgressRequests.length})` : ""}`}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-              {/* Row 1: Officer # | Service request # */}
-              <View style={styles.rowInputs}>
-                <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
-                <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
-              </View>
-
-              {/* Row 2: Date | Time (local defaults) */}
-              <View style={styles.rowInputs}>
-                <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
-                <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
-              </View>
-
-              {/* Row 3: Address search — type-to-filter, City of Melbourne, prev first */}
-              <View>
-                <TextInput
-                  value={addressQuery}
-                  onChangeText={(text) => {
-                    setAddressQuery(text);
-                    setAddressDropdownVisible(true);
-                  }}
-                  onFocus={() => setAddressDropdownVisible(true)}
-                  placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
-                  placeholderTextColor={selectedAddress ? Colors.dark.tint : Colors.dark.textMuted}
-                  style={styles.modalInput}
-                />
-                {addressDropdownVisible && addressSuggestionsComputed.length > 0 && (
-                  <View style={styles.acDropdown}>
-                    {addressSuggestionsComputed.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        style={styles.acItem}
-                        onPress={() => {
-                          const addr = { label: option.label, latitude: option.latitude, longitude: option.longitude };
-                          setSelectedAddress(addr);
-                          setLastSelectedAddress(addr);
-                          setAddressQuery(option.label);
-                          setAddressDropdownVisible(false);
-                          mapRef.current?.animateToRegion({
-                            latitude: option.latitude,
-                            longitude: option.longitude,
-                            latitudeDelta: 0.002,
-                            longitudeDelta: 0.002,
-                          }, 600);
-                        }}
-                      >
-                        <Ionicons name="location-outline" size={12} color={Colors.dark.tint} style={{ marginRight: 6 }} />
-                        <Text style={styles.acItemText} numberOfLines={1}>{option.label}</Text>
-                      </TouchableOpacity>
-                    ))}
+            {/* ── Swipeable Content ── */}
+            <ScrollView
+              ref={tabScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              style={styles.modalSwipeable}
+              contentContainerStyle={styles.modalSwipeableContent}
+              onMomentumScrollEnd={(e) => {
+                const page = Math.round(e.nativeEvent.contentOffset.x / modalContentWidth);
+                setActiveModalTab(page === 0 ? 0 : 1);
+              }}
+            >
+              {/* ── Tab 0: New / Edit Form ── */}
+              <View style={[styles.modalTabPage, { width: modalContentWidth }]}>
+                <ScrollView
+                  style={styles.modalBody}
+                  contentContainerStyle={styles.modalBodyContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                >
+                  {/* Row 1: Officer # | Service request # */}
+                  <View style={styles.rowInputs}>
+                    <TextInput value={officerNumber} onChangeText={setOfficerNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={serviceRequestNumber} onChangeText={setServiceRequestNumber} style={[styles.modalInput, styles.rowInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
                   </View>
-                )}
-              </View>
 
-              {/* Offence type — autocomplete, max 3 */}
-              <Text style={styles.modalFieldLabel}>Offence type</Text>
-              <View>
-                <TextInput
-                  value={offenceTypeQuery}
-                  onChangeText={setOffenceTypeQuery}
-                  placeholder={code21Type || "Select offence"}
-                  placeholderTextColor={code21Type ? Colors.dark.tint : Colors.dark.textMuted}
-                  style={styles.modalInput}
-                />
-                {filteredOffenceTypes.length > 0 && (
-                  <View style={styles.acDropdown}>
-                    {filteredOffenceTypes.map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        style={styles.acItem}
-                        onPress={() => { setCode21Type(type); setOffenceTypeQuery(""); }}
-                      >
-                        <Text style={styles.acItemText}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
+                  {/* Row 2: Date | Time */}
+                  <View style={styles.rowInputs}>
+                    <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
                   </View>
-                )}
-              </View>
 
-              {/* Dispatch notes */}
-              <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
-
-              {/* Vehicle make — full-width autocomplete */}
-              <View>
-                <TextInput
-                  value={vehicleMakeQuery}
-                  onChangeText={(text) => { setVehicleMakeQuery(text); setVehicleMake(text); }}
-                  style={styles.modalInput}
-                  placeholder={vehicleMake || "Vehicle make"}
-                  placeholderTextColor={vehicleMake ? Colors.dark.tint : Colors.dark.textMuted}
-                />
-                {vehicleMakeQuery.length > 0 && filteredVehicleMakes.length > 0 && (
-                  <View style={styles.acDropdown}>
-                    {filteredVehicleMakes.map((make) => (
-                      <TouchableOpacity
-                        key={make}
-                        style={styles.acItem}
-                        onPress={() => { setVehicleMake(make); setVehicleMakeQuery(""); }}
-                      >
-                        <Text style={styles.acItemText}>{make}</Text>
-                      </TouchableOpacity>
-                    ))}
+                  {/* Row 3: Address search */}
+                  <View>
+                    <TextInput
+                      value={addressQuery}
+                      onChangeText={(text) => { setAddressQuery(text); setAddressDropdownVisible(true); }}
+                      onFocus={() => setAddressDropdownVisible(true)}
+                      placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
+                      placeholderTextColor={selectedAddress ? Colors.dark.tint : Colors.dark.textMuted}
+                      style={styles.modalInput}
+                    />
+                    {addressDropdownVisible && addressSuggestionsComputed.length > 0 && (
+                      <View style={styles.acDropdown}>
+                        {addressSuggestionsComputed.map((option) => (
+                          <TouchableOpacity
+                            key={option.id}
+                            style={styles.acItem}
+                            onPress={() => {
+                              const addr = { label: option.label, latitude: option.latitude, longitude: option.longitude };
+                              setSelectedAddress(addr);
+                              setLastSelectedAddress(addr);
+                              setAddressQuery(option.label);
+                              setAddressDropdownVisible(false);
+                              mapRef.current?.animateToRegion({
+                                latitude: option.latitude,
+                                longitude: option.longitude,
+                                latitudeDelta: 0.002,
+                                longitudeDelta: 0.002,
+                              }, 600);
+                            }}
+                          >
+                            <Ionicons name="location-outline" size={12} color={Colors.dark.tint} style={{ marginRight: 6 }} />
+                            <Text style={styles.acItemText} numberOfLines={1}>{option.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
 
-              {/* Vehicle rego (left) | Vehicle colour autocomplete (right) */}
-              <View style={styles.rowInputs}>
-                <TextInput
-                  value={vehicleRego}
-                  onChangeText={setVehicleRego}
-                  autoCapitalize="characters"
-                  style={[styles.modalInput, styles.rowInput]}
-                  placeholder="Rego"
-                  placeholderTextColor={Colors.dark.textMuted}
-                />
-                <View style={styles.rowInput}>
-                  <TextInput
-                    value={vehicleColourQuery}
-                    onChangeText={(text) => { setVehicleColourQuery(text); setVehicleColour(text); }}
-                    style={styles.modalInput}
-                    placeholder={vehicleColour || "Colour"}
-                    placeholderTextColor={vehicleColour ? Colors.dark.tint : Colors.dark.textMuted}
-                  />
-                  {vehicleColourQuery.length > 0 && filteredVehicleColours.length > 0 && (
-                    <View style={styles.acDropdown}>
-                      {filteredVehicleColours.map((colour) => (
-                        <TouchableOpacity
-                          key={colour}
-                          style={styles.acItem}
-                          onPress={() => { setVehicleColour(colour); setVehicleColourQuery(""); }}
-                        >
-                          <Text style={styles.acItemText}>{colour}</Text>
-                        </TouchableOpacity>
-                      ))}
+                  {/* Offence type */}
+                  <Text style={styles.modalFieldLabel}>Offence type</Text>
+                  <View>
+                    <TextInput
+                      value={offenceTypeQuery}
+                      onChangeText={setOffenceTypeQuery}
+                      placeholder={code21Type || "Select offence"}
+                      placeholderTextColor={code21Type ? Colors.dark.tint : Colors.dark.textMuted}
+                      style={styles.modalInput}
+                    />
+                    {filteredOffenceTypes.length > 0 && (
+                      <View style={styles.acDropdown}>
+                        {filteredOffenceTypes.map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={styles.acItem}
+                            onPress={() => { setCode21Type(type); setOffenceTypeQuery(""); }}
+                          >
+                            <Text style={styles.acItemText}>{type}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Dispatch notes */}
+                  <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
+
+                  {/* Vehicle make */}
+                  <View>
+                    <TextInput
+                      value={vehicleMakeQuery}
+                      onChangeText={(text) => { setVehicleMakeQuery(text); setVehicleMake(text); }}
+                      style={styles.modalInput}
+                      placeholder={vehicleMake || "Vehicle make"}
+                      placeholderTextColor={vehicleMake ? Colors.dark.tint : Colors.dark.textMuted}
+                    />
+                    {vehicleMakeQuery.length > 0 && filteredVehicleMakes.length > 0 && (
+                      <View style={styles.acDropdown}>
+                        {filteredVehicleMakes.map((make) => (
+                          <TouchableOpacity
+                            key={make}
+                            style={styles.acItem}
+                            onPress={() => { setVehicleMake(make); setVehicleMakeQuery(""); }}
+                          >
+                            <Text style={styles.acItemText}>{make}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Vehicle rego | Vehicle colour */}
+                  <View style={styles.rowInputs}>
+                    <TextInput
+                      value={vehicleRego}
+                      onChangeText={setVehicleRego}
+                      autoCapitalize="characters"
+                      style={[styles.modalInput, styles.rowInput]}
+                      placeholder="Rego"
+                      placeholderTextColor={Colors.dark.textMuted}
+                    />
+                    <View style={styles.rowInput}>
+                      <TextInput
+                        value={vehicleColourQuery}
+                        onChangeText={(text) => { setVehicleColourQuery(text); setVehicleColour(text); }}
+                        style={styles.modalInput}
+                        placeholder={vehicleColour || "Colour"}
+                        placeholderTextColor={vehicleColour ? Colors.dark.tint : Colors.dark.textMuted}
+                      />
+                      {vehicleColourQuery.length > 0 && filteredVehicleColours.length > 0 && (
+                        <View style={styles.acDropdown}>
+                          {filteredVehicleColours.map((colour) => (
+                            <TouchableOpacity
+                              key={colour}
+                              style={styles.acItem}
+                              onPress={() => { setVehicleColour(colour); setVehicleColourQuery(""); }}
+                            >
+                              <Text style={styles.acItemText}>{colour}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
                     </View>
+                  </View>
+
+                  {/* Attendance notes */}
+                  <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
+
+                  {/* PIN toggle */}
+                  <TouchableOpacity
+                    style={[styles.pinToggle, pinIssued && styles.pinToggleActive]}
+                    onPress={() => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={pinIssued ? "checkmark-circle" : "ellipse-outline"}
+                      size={16}
+                      color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
+                    />
+                    <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued</Text>
+                  </TouchableOpacity>
+                  {pinIssued && (
+                    <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
                   )}
+
+                  {/* Document preview */}
+                  <View style={styles.documentPreview}>
+                    <Text style={styles.modalFieldLabel}>Document preview</Text>
+                    <Text style={styles.documentPreviewText}>{formattedDocument}</Text>
+                  </View>
+
+                  {/* Travel mode */}
+                  <View style={styles.travelRow}>
+                    <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalCancel} onPress={() => { setCode21ModalVisible(false); setEditingRequestId(null); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.modalSave} onPress={submitCode21}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
                 </View>
               </View>
 
-              {/* Attendance notes */}
-              <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
-
-              {/* PIN toggle + conditional input */}
-              <TouchableOpacity
-                style={[styles.pinToggle, pinIssued && styles.pinToggleActive]}
-                onPress={() => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={pinIssued ? "checkmark-circle" : "ellipse-outline"}
-                  size={16}
-                  color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
-                />
-                <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued</Text>
-              </TouchableOpacity>
-              {pinIssued && (
-                <TextInput value={pinValue} onChangeText={setPinValue} style={styles.modalInput} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
-              )}
-
-              {/* Formatted document preview */}
-              <View style={styles.documentPreview}>
-                <Text style={styles.modalFieldLabel}>Document preview</Text>
-                <Text style={styles.documentPreviewText}>{formattedDocument}</Text>
+              {/* ── Tab 1: In Progress List ── */}
+              <View style={[styles.modalTabPage, { width: modalContentWidth }]}>
+                <ScrollView
+                  style={styles.modalBody}
+                  contentContainerStyle={styles.inProgressList}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  {inProgressRequests.length === 0 ? (
+                    <View style={styles.inProgressEmpty}>
+                      <Ionicons name="checkmark-circle-outline" size={44} color={Colors.dark.textMuted} />
+                      <Text style={styles.inProgressEmptyText}>No active Code 21 requests</Text>
+                      <Text style={styles.inProgressEmptyHint}>Saved requests will appear here until marked complete</Text>
+                    </View>
+                  ) : (
+                    inProgressRequests.map((req) => (
+                      <View key={req.id} style={styles.inProgressItem}>
+                        <View style={styles.inProgressBar} />
+                        <View style={styles.inProgressInfo}>
+                          <Text style={styles.inProgressAddress} numberOfLines={1}>{req.addressLabel}</Text>
+                          <Text style={styles.inProgressType} numberOfLines={1}>{req.offenceType || req.code21Type}</Text>
+                          <Text style={styles.inProgressMeta}>{req.offenceDate}{"  "}{req.offenceTime}</Text>
+                        </View>
+                        <View style={styles.inProgressActions}>
+                          <TouchableOpacity
+                            style={styles.inProgressEditBtn}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              const addr = { label: req.addressLabel, latitude: req.latitude, longitude: req.longitude };
+                              setSelectedAddress(addr);
+                              setLastSelectedAddress(addr);
+                              setAddressQuery(req.addressLabel);
+                              setAddressDropdownVisible(false);
+                              setOfficerNumber(req.officerNumber || DEFAULT_OFFICER_NUMBER);
+                              setServiceRequestNumber(req.serviceRequestNumber || "");
+                              setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
+                              setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
+                              setCode21Type(req.offenceType || req.code21Type);
+                              setDispatchNotes(req.dispatchNotes);
+                              setAttendanceNotes(req.attendanceNotes);
+                              setPinValue(req.pin);
+                              setPinIssued(!!req.pin);
+                              setVehicleMake(req.vehicleMake || "");
+                              setVehicleColour(req.vehicleColour || "");
+                              setVehicleRego(req.vehicleRego || "");
+                              setVehicleMakeQuery(req.vehicleMake || "");
+                              setVehicleColourQuery(req.vehicleColour || "");
+                              setOffenceTypeQuery("");
+                              setDescription(req.description);
+                              setTravelMode(req.travelMode);
+                              setEditingRequestId(req.id);
+                              scrollToTab(0);
+                            }}
+                          >
+                            <Ionicons name="create-outline" size={19} color={Colors.dark.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.inProgressCompleteBtn}
+                            activeOpacity={0.7}
+                            onPress={() => markCode21Complete(req.id)}
+                          >
+                            <Ionicons name="checkmark-circle-outline" size={22} color={Colors.dark.tint} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
               </View>
-
-              {/* Travel mode */}
-              <View style={styles.travelRow}>
-                <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
-              </View>
-
             </ScrollView>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => { setCode21ModalVisible(false); setEditingRequestId(null); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={submitCode21}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -1923,11 +2086,123 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 12,
   },
+  modalTabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  modalTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  modalTabActive: {
+    borderBottomColor: Colors.dark.tint,
+  },
+  modalTabText: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.textMuted,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  modalTabTextActive: {
+    color: Colors.dark.tint,
+  },
+  modalSwipeable: {
+    flex: 1,
+  },
+  modalSwipeableContent: {
+    height: "100%",
+  },
+  modalTabPage: {
+    flex: 1,
+    flexDirection: "column",
+  },
+  inProgressList: {
+    padding: 10,
+    gap: 8,
+    flexGrow: 1,
+  },
+  inProgressItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.dark.surfaceAlt,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    overflow: "hidden",
+    minHeight: 64,
+  },
+  inProgressBar: {
+    width: 4,
+    alignSelf: "stretch",
+    backgroundColor: Colors.dark.warning,
+  },
+  inProgressInfo: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 3,
+  },
+  inProgressAddress: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.text,
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  inProgressType: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textSecondary,
+    fontSize: 10,
+    letterSpacing: 0.2,
+  },
+  inProgressMeta: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 10,
+  },
+  inProgressActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 8,
+    gap: 2,
+  },
+  inProgressEditBtn: {
+    padding: 8,
+  },
+  inProgressCompleteBtn: {
+    padding: 8,
+  },
+  inProgressEmpty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    gap: 10,
+  },
+  inProgressEmptyText: {
+    fontFamily: "RobotoMono_700Bold",
+    color: Colors.dark.textMuted,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  inProgressEmptyHint: {
+    fontFamily: "RobotoMono_400Regular",
+    color: Colors.dark.textMuted,
+    fontSize: 10,
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 16,
+  },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 8,
-    marginTop: 4,
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
   },
   modalCancel: {
     paddingHorizontal: 12,

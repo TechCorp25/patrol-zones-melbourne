@@ -120,6 +120,21 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Run: `python scripts/generate_melbourne_cbd_street_blocks.py --outdir scripts/out --single`
 - Dependencies: requests, shapely, rtree, pyproj, tqdm, orjson (+ libspatialindex system dep)
 
+## Code 21 Modal — Two-Tab Workflow
+
+The Code 21 modal has two tabs navigated via horizontal swipe or tab bar tap:
+
+- **NEW REQUEST / EDIT REQUEST (Tab 0)**: Full form for initiating a physical attendance — address search, offence type, vehicle details, dispatch/attendance notes, PIN, travel mode. Save adds an optimistic map marker immediately; server persists in background.
+- **IN PROGRESS (Tab 1)**: Live list of all active Code 21 requests. Each item shows address, offence type, and date/time with two actions:
+  - **Edit** (pencil icon): Loads the request into Tab 0 for amendment without creating a duplicate
+  - **Mark Complete** (tick icon): Optimistically removes the item from the list and PATCHes `status = "complete"` to the server
+
+### Status Lifecycle
+- New requests default to `status: "in_progress"`
+- Completed requests are removed from Tab 1 and the route optimiser, but their map markers remain for the session
+- `PATCH /api/code21/:id` endpoint updates status in the database
+- `status` column added to `code21_requests` table (DB migration applied)
+
 ## Running the App
 - Start Backend: `npm run server:dev` (port 5000)
 - Start Frontend: `npm run expo:dev` (port 8081)

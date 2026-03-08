@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { type User, type InsertUser, type Code21Request, type InsertCode21Request, users, code21Requests } from "@shared/schema";
+import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, users, code21Requests } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
 import { db } from "./db";
@@ -19,6 +19,7 @@ export interface IStorage {
   deleteSession(token: string): Promise<void>;
   createCode21Request(request: InsertCode21Request): Promise<Code21Request>;
   getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]>;
+  updateCode21RequestStatus(id: string, status: Code21Status): Promise<Code21Request | null>;
 }
 
 export class DbStorage implements IStorage {
@@ -91,6 +92,22 @@ export class DbStorage implements IStorage {
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
     })) as unknown as Code21Request[];
+  }
+
+  async updateCode21RequestStatus(id: string, status: Code21Status): Promise<Code21Request | null> {
+    const rows = await db
+      .update(code21Requests)
+      .set({ status })
+      .where(eq(code21Requests.id, id))
+      .returning();
+
+    if (!rows[0]) return null;
+
+    return {
+      ...rows[0],
+      latitude: Number(rows[0].latitude),
+      longitude: Number(rows[0].longitude),
+    } as unknown as Code21Request;
   }
 }
 
