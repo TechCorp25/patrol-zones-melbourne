@@ -506,7 +506,9 @@ export default function PatrolMapScreen() {
         setRouteOrderedRequests([...inProgressRequests]);
         return;
       }
-      void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL).then(setRouteOrderedRequests);
+      void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL)
+        .then(setRouteOrderedRequests)
+        .catch(() => { setRouteOrderedRequests([...inProgressRequests]); });
     }, 800);
     return () => clearTimeout(timer);
   }, [inProgressRequests, travelMode]);
@@ -687,11 +689,15 @@ export default function PatrolMapScreen() {
   }, [location, activeNavRequest, navArrived]);
 
   useEffect(() => {
-    if (!activeNavRequest || !location) return;
-    const minLat = Math.min(location.latitude, activeNavRequest.latitude);
-    const maxLat = Math.max(location.latitude, activeNavRequest.latitude);
-    const minLng = Math.min(location.longitude, activeNavRequest.longitude);
-    const maxLng = Math.max(location.longitude, activeNavRequest.longitude);
+    if (!activeNavRequest) return;
+    // Read current location from ref so this only fires when the nav target changes,
+    // not on every GPS tick (calling animateToRegion every 2 s crashes react-native-maps)
+    const loc = locationRef.current;
+    if (!loc) return;
+    const minLat = Math.min(loc.latitude, activeNavRequest.latitude);
+    const maxLat = Math.max(loc.latitude, activeNavRequest.latitude);
+    const minLng = Math.min(loc.longitude, activeNavRequest.longitude);
+    const maxLng = Math.max(loc.longitude, activeNavRequest.longitude);
     const latDelta = Math.max((maxLat - minLat) * 1.8, 0.003);
     const lngDelta = Math.max((maxLng - minLng) * 1.8, 0.003);
     mapRef.current?.animateToRegion({
@@ -700,7 +706,7 @@ export default function PatrolMapScreen() {
       latitudeDelta: latDelta,
       longitudeDelta: lngDelta,
     }, 700);
-  }, [activeNavRequest, location]);
+  }, [activeNavRequest]);
 
   const navigateMultiStopJourney = useCallback((orderedRequests: Code21Request[]) => {
     if (orderedRequests.length === 0) return;
@@ -730,7 +736,9 @@ export default function PatrolMapScreen() {
       params.set("waypoints", waypointParam);
     }
 
-    void Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`);
+    Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`).catch(() => {
+      Alert.alert("Cannot open Maps", "Google Maps could not be opened on this device.");
+    });
   }, [location, travelMode]);
 
   const submitCode21 = useCallback(async () => {
@@ -896,11 +904,11 @@ export default function PatrolMapScreen() {
       return;
     }
     const timeout = setTimeout(() => {
-      void fetchOptimisedRoute(routeOrderedRequests, travelMode, location);
+      // Use locationRef so we always read the live position, not a stale closure value
+      void fetchOptimisedRoute(routeOrderedRequests, travelMode, locationRef.current);
     }, 800);
     return () => clearTimeout(timeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeOrderedRequests, travelMode]);
+  }, [routeOrderedRequests, travelMode, fetchOptimisedRoute]);
 
   const mapDestinations = useMemo(
     () =>

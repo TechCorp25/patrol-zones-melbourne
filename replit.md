@@ -167,6 +167,14 @@ Applied five targeted hardening changes. All verified via `tsc --noEmit` (zero e
 - `constants/offenceTypes.ts` (new) — `CODE21_TYPES as const` extracted to a dependency-free file; `shared/schema.ts` and `constants/code21.ts` both import from it, eliminating the duplicate enum list
 - `constants/intersections.ts` (new) — Shared Melbourne CBD intersection coordinates extracted from `streets.ts` and `streetNumbers.ts`; both files now import the single source, eliminating ~200 lines of duplicated coordinate data
 
+**Bug Fix Pass (2026-03-08) — Multi-stop routing crash + stale location**
+Three targeted fixes in `app/index.tsx`. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and end-to-end smoke test.
+
+- `animateToRegion` crash — the nav-target animation effect previously depended on both `activeNavRequest` and `location`, firing every 2 seconds on each GPS update during navigation and starting overlapping 700 ms animations, which caused a native crash in react-native-maps. Fixed by removing `location` from the dependency array and reading `locationRef.current` inside the effect so it only fires when the nav target actually changes.
+- Stale-closure route location — the route-fetching `useEffect` called `fetchOptimisedRoute(..., location)` where `location` was a stale closure variable captured from the render that created the timeout. Fixed by reading `locationRef.current` inside the `setTimeout` callback so OSRM always receives the live position; `fetchOptimisedRoute` added to the effect's dependency array and the suppression comment removed.
+- Unhandled optimisation rejection — `optimiseWithTerrainAndSLA` promise was chained with `.then()` only; added `.catch()` that falls back to the unoptimised request order so a transient elevation API failure can't silently crash the routing chain.
+- `Linking.openURL` unhandled rejection — wrapped in `.catch()` to show an `Alert` if Google Maps cannot be opened on the device.
+
 ---
 
 ## Running the App
