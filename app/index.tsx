@@ -96,6 +96,24 @@ function formatRouteDuration(seconds: number): string {
   return remainingMins > 0 ? `${hours} h ${remainingMins} min` : `${hours} h`;
 }
 
+function haversineDistanceMetres(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function estimateNavDuration(distanceMetres: number, mode: "foot" | "vehicle"): number {
+  return distanceMetres / (mode === "foot" ? 1.39 : 8.33);
+}
+
 export default function PatrolMapScreen() {
   const insets = useSafeAreaInsets();
 
@@ -136,6 +154,9 @@ export default function PatrolMapScreen() {
     legs: { distanceMetres: number; durationSeconds: number }[];
   } | null>(null);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+  const [activeNavRequest, setActiveNavRequest] = useState<Code21Request | null>(null);
+  const [navArrived, setNavArrived] = useState(false);
+  const [navDistanceMetres, setNavDistanceMetres] = useState<number | null>(null);
   const tabScrollRef = useRef<ScrollView>(null);
   const [officerNumber, setOfficerNumber] = useState(DEFAULT_OFFICER_NUMBER);
   const [serviceRequestNumber, setServiceRequestNumber] = useState("");
@@ -526,23 +547,47 @@ export default function PatrolMapScreen() {
     }
   }, []);
 
-  const navigateToLocation = useCallback((lat: number, lng: number) => {
-    const dirFlag = travelMode === "foot" ? "w" : "d";
-    const googleMode = travelMode === "foot" ? "walking" : "driving";
-    const iosUrl = `maps://?daddr=${lat},${lng}&dirflg=${dirFlag}`;
-    const androidUrl = `google.navigation:q=${lat},${lng}&mode=${dirFlag}`;
-    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=${googleMode}`;
+  const stopNavigation = useCallback(() => {
+    setActiveNavRequest(null);
+    setNavArrived(false);
+    setNavDistanceMetres(null);
+  }, []);
 
-    if (Platform.OS === "ios") {
-      Linking.canOpenURL(iosUrl).then((can) => {
-        Linking.openURL(can ? iosUrl : webFallback);
-      });
-    } else {
-      Linking.canOpenURL(androidUrl).then((can) => {
-        Linking.openURL(can ? androidUrl : webFallback);
-      });
+  const startNavigation = useCallback((request: Code21Request) => {
+    setActiveNavRequest(request);
+    setNavArrived(false);
+    setNavDistanceMetres(null);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  useEffect(() => {
+    if (!activeNavRequest || !location) return;
+    const dist = haversineDistanceMetres(
+      location.latitude, location.longitude,
+      activeNavRequest.latitude, activeNavRequest.longitude,
+    );
+    setNavDistanceMetres(dist);
+    if (dist < 30 && !navArrived) {
+      setNavArrived(true);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [travelMode]);
+  }, [location, activeNavRequest, navArrived]);
+
+  useEffect(() => {
+    if (!activeNavRequest || !location) return;
+    const minLat = Math.min(location.latitude, activeNavRequest.latitude);
+    const maxLat = Math.max(location.latitude, activeNavRequest.latitude);
+    const minLng = Math.min(location.longitude, activeNavRequest.longitude);
+    const maxLng = Math.max(location.longitude, activeNavRequest.longitude);
+    const latDelta = Math.max((maxLat - minLat) * 1.8, 0.003);
+    const lngDelta = Math.max((maxLng - minLng) * 1.8, 0.003);
+    mapRef.current?.animateToRegion({
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: latDelta,
+      longitudeDelta: lngDelta,
+    }, 700);
+  }, [activeNavRequest, location]);
 
   const submitCode21 = useCallback(async () => {
     if (!selectedAddress) {
@@ -1589,22 +1634,31 @@ export default function PatrolMapScreen() {
             </Text>
           )}
           <View style={styles.routeDivider} />
-          {routeOrderedRequests.slice(0, 5).map((request, index) => (
-            <View key={request.id} style={styles.routeStopRow}>
-              <View style={styles.routeStopBadge}>
-                <Text style={styles.routeStopNum}>{index + 1}</Text>
+          {routeOrderedRequests.slice(0, 5).map((request, index) => {
+            const isNavigating = activeNavRequest?.id === request.id;
+            return (
+              <View key={request.id} style={[styles.routeStopRow, isNavigating && styles.routeStopRowActive]}>
+                <View style={[styles.routeStopBadge, isNavigating && styles.routeStopBadgeActive]}>
+                  <Text style={styles.routeStopNum}>{index + 1}</Text>
+                </View>
+                <Text style={[styles.routeItem, isNavigating && styles.routeItemActive]} numberOfLines={1}>
+                  {request.addressLabel}
+                </Text>
+                <TouchableOpacity
+                  style={styles.routeNavBtn}
+                  onPress={() => isNavigating ? stopNavigation() : startNavigation(request)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons
+                    name={isNavigating ? "close-circle" : "navigate"}
+                    size={14}
+                    color={isNavigating ? Colors.dark.danger : Colors.dark.tint}
+                  />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.routeItem} numberOfLines={1}>{request.addressLabel}</Text>
-              <TouchableOpacity
-                style={styles.routeNavBtn}
-                onPress={() => navigateToLocation(request.latitude, request.longitude)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Ionicons name="navigate" size={14} color={Colors.dark.tint} />
-              </TouchableOpacity>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -1642,6 +1696,65 @@ export default function PatrolMapScreen() {
         visible={zoneInfoVisible}
         onClose={() => setZoneInfoVisible(false)}
       />
+
+      {/* ── In-app Navigation HUD ── */}
+      {activeNavRequest && (
+        <View style={[styles.navHud, { top: insets.top + 56 }]}>
+          {navArrived ? (
+            <View style={styles.navHudInner}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.dark.success} />
+              <View style={styles.navHudCenter}>
+                <Text style={styles.navHudLabel}>ARRIVED</Text>
+                <Text style={styles.navHudAddress} numberOfLines={1}>
+                  {activeNavRequest.addressLabel}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.navHudMarkBtn}
+                onPress={async () => {
+                  await markCode21Complete(activeNavRequest.id);
+                  stopNavigation();
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.navHudMarkBtnText}>MARK DONE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navHudEndBtn}
+                onPress={stopNavigation}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.navHudInner}>
+              <Ionicons
+                name={travelMode === "foot" ? "walk" : "car"}
+                size={20}
+                color={travelMode === "foot" ? Colors.dark.success : Colors.dark.tint}
+              />
+              <View style={styles.navHudCenter}>
+                <Text style={styles.navHudAddress} numberOfLines={1}>
+                  {activeNavRequest.addressLabel}
+                </Text>
+                <Text style={styles.navHudMeta}>
+                  {navDistanceMetres !== null
+                    ? `${formatRouteDistance(navDistanceMetres)}  ·  ~${formatRouteDuration(estimateNavDuration(navDistanceMetres, travelMode))}`
+                    : "Calculating…"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.navHudEndBtn}
+                onPress={stopNavigation}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={22} color={Colors.dark.danger} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -2614,5 +2727,77 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.tint,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  routeStopRowActive: {
+    backgroundColor: 'rgba(14,165,233,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    marginHorizontal: -4,
+  },
+  routeStopBadgeActive: {
+    backgroundColor: Colors.dark.tint,
+  },
+  routeItemActive: {
+    color: Colors.dark.tint,
+    fontFamily: 'RobotoMono_700Bold',
+  },
+  navHud: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(8,18,34,0.97)',
+    borderWidth: 1,
+    borderColor: Colors.dark.tint,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 99,
+  },
+  navHudInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  navHudCenter: {
+    flex: 1,
+    gap: 2,
+  },
+  navHudLabel: {
+    fontFamily: 'RobotoMono_700Bold',
+    color: Colors.dark.success,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  navHudAddress: {
+    fontFamily: 'RobotoMono_700Bold',
+    color: Colors.dark.text,
+    fontSize: 11,
+    letterSpacing: 0.3,
+  },
+  navHudMeta: {
+    fontFamily: 'RobotoMono_400Regular',
+    color: Colors.dark.textSecondary,
+    fontSize: 10,
+    letterSpacing: 0.2,
+  },
+  navHudEndBtn: {
+    padding: 2,
+  },
+  navHudMarkBtn: {
+    backgroundColor: Colors.dark.success,
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+  },
+  navHudMarkBtnText: {
+    fontFamily: 'RobotoMono_700Bold',
+    color: '#fff',
+    fontSize: 9,
+    letterSpacing: 0.8,
   },
 });
