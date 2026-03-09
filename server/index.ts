@@ -302,9 +302,13 @@ function setupErrorHandler(app: express.Application) {
 
   setupErrorHandler(app);
 
-  // Purge stale sessions on startup and then every 6 hours
   await storage.purgeExpiredSessions();
   setInterval(() => { void storage.purgeExpiredSessions(); }, 6 * 60 * 60 * 1000);
+
+  const PRESENCE_TIMEOUT_MS = 90_000;
+  const PRESENCE_SWEEP_INTERVAL_MS = 60_000;
+  void storage.sweepStalePresence(PRESENCE_TIMEOUT_MS);
+  setInterval(() => { void storage.sweepStalePresence(PRESENCE_TIMEOUT_MS); }, PRESENCE_SWEEP_INTERVAL_MS);
 
   const port = parseInt(process.env.PORT || "5000", 10);
   server.listen(

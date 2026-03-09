@@ -1,8 +1,13 @@
-import { and, eq, lt, or, ilike } from "drizzle-orm";
-import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, type Session, users, code21Requests, sessions } from "@shared/schema";
+import { and, eq, lt, or, ilike, sql } from "drizzle-orm";
+import {
+  type User, type InsertUser, type Code21Request, type InsertCode21Request,
+  type Code21Status, type Session, type SectionBoardRow, type DisplayStatus,
+  users, code21Requests, sessions, sectionAssignments, userPresence,
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
 import { db } from "./db";
+import { PATROL_ZONES } from "../constants/zones";
 
 export type { Session };
 
@@ -25,6 +30,13 @@ export interface IStorage {
   getCode21RequestById(id: string): Promise<Code21Request | null>;
   appendOfficerNote(id: string, note: string): Promise<Code21Request | null>;
   searchCode21Archive(query: string, officerNumber: string): Promise<Code21Request[]>;
+  upsertPresenceOnline(userId: string, sessionId?: string, clientType?: string): Promise<void>;
+  updatePresenceHeartbeat(userId: string): Promise<void>;
+  setPresenceOffline(userId: string): Promise<void>;
+  sweepStalePresence(timeoutMs: number): Promise<number>;
+  assignSection(sectionId: string, officerUserId: string, assignedByUserId: string | null): Promise<void>;
+  unassignSection(sectionId: string, endedByUserId: string | null): Promise<void>;
+  getAssignmentBoard(): Promise<SectionBoardRow[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -239,6 +251,166 @@ export class DbStorage implements IStorage {
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
     })) as unknown as Code21Request[];
+  }
+
+  async upsertPresenceOnline(userId: string, sessionId?: string, clientType?: string): Promise<void> {
+    const now = new Date();
+    await db
+      .insert(userPresence)
+      .values({
+        userId,
+        isOnline: true,
+        sessionId: sessionId ?? null,
+        connectedAt: now,
+        lastSeenAt: now,
+        offlineAt: null,
+        clientType: clientType ?? null,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: userPresence.userId,
+        set: {
+          isOnline: true,
+          sessionId: sessionId ?? sql`${userPresence.sessionId}`,
+          connectedAt: now,
+          lastSeenAt: now,
+          offlineAt: null,
+          clientType: clientType ?? sql`${userPresence.clientType}`,
+          updatedAt: now,
+        },
+      });
+  }
+
+  async updatePresenceHeartbeat(userId: string): Promise<void> {
+    const now = new Date();
+    await db
+      .insert(userPresence)
+      .values({
+        userId,
+        isOnline: true,
+        connectedAt: now,
+        lastSeenAt: now,
+        offlineAt: null,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: userPresence.userId,
+        set: { lastSeenAt: now, isOnline: true, updatedAt: now },
+      });
+  }
+
+  async setPresenceOffline(userId: string): Promise<void> {
+    const now = new Date();
+    await db
+      .update(userPresence)
+      .set({ isOnline: false, offlineAt: now, updatedAt: now })
+      .where(eq(userPresence.userId, userId));
+  }
+
+  async sweepStalePresence(timeoutMs: number): Promise<number> {
+    const cutoff = new Date(Date.now() - timeoutMs);
+    const rows = await db
+      .update(userPresence)
+      .set({ isOnline: false, offlineAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(userPresence.isOnline, true),
+          lt(userPresence.lastSeenAt, cutoff),
+        ),
+      )
+      .returning({ userId: userPresence.userId });
+    return rows.length;
+  }
+
+  async assignSection(sectionId: string, officerUserId: string, assignedByUserId: string | null): Promise<void> {
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx
+        .update(sectionAssignments)
+        .set({ status: "ENDED", endedAt: now, endedByUserId: assignedByUserId })
+        .where(
+          and(
+            eq(sectionAssignments.sectionId, sectionId),
+            eq(sectionAssignments.status, "ACTIVE"),
+          ),
+        );
+
+      await tx.insert(sectionAssignments).values({
+        id: randomUUID(),
+        sectionId,
+        officerUserId,
+        status: "ACTIVE",
+        assignedAt: now,
+        assignedByUserId,
+        createdAt: now,
+      });
+    });
+  }
+
+  async unassignSection(sectionId: string, endedByUserId: string | null): Promise<void> {
+    const now = new Date();
+    await db
+      .update(sectionAssignments)
+      .set({ status: "ENDED", endedAt: now, endedByUserId })
+      .where(
+        and(
+          eq(sectionAssignments.sectionId, sectionId),
+          eq(sectionAssignments.status, "ACTIVE"),
+        ),
+      );
+  }
+
+  async getAssignmentBoard(): Promise<SectionBoardRow[]> {
+    const rows = await db
+      .select({
+        sectionId: sectionAssignments.sectionId,
+        officerNumber: users.officerNumber,
+        isOnline: userPresence.isOnline,
+        assignedAt: sectionAssignments.assignedAt,
+      })
+      .from(sectionAssignments)
+      .innerJoin(users, eq(users.id, sectionAssignments.officerUserId))
+      .leftJoin(userPresence, eq(userPresence.userId, sectionAssignments.officerUserId))
+      .where(eq(sectionAssignments.status, "ACTIVE"));
+
+    const assignmentMap = new Map<string, {
+      officerNumber: string;
+      isOnline: boolean;
+      assignedAt: Date;
+    }>();
+
+    for (const row of rows) {
+      assignmentMap.set(row.sectionId, {
+        officerNumber: row.officerNumber,
+        isOnline: row.isOnline ?? false,
+        assignedAt: row.assignedAt,
+      });
+    }
+
+    return PATROL_ZONES.map((zone): SectionBoardRow => {
+      const assignment = assignmentMap.get(zone.id);
+      if (!assignment) {
+        return {
+          sectionId: zone.id,
+          sectionName: zone.name,
+          displayStatus: "UNASSIGNED",
+          assignedOfficerNumber: null,
+          assignedAt: null,
+        };
+      }
+
+      const displayStatus: DisplayStatus = assignment.isOnline
+        ? "ASSIGNED_ONLINE"
+        : "ASSIGNED_OFFLINE";
+
+      return {
+        sectionId: zone.id,
+        sectionName: zone.name,
+        displayStatus,
+        assignedOfficerNumber: assignment.officerNumber,
+        assignedAt: assignment.assignedAt.toISOString(),
+      };
+    });
   }
 }
 

@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 const IS_WEB = Platform.OS === "web";
 const API_BASE_URL = IS_WEB ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
 const AUTH_TOKEN_KEY = "patrol_auth_token";
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 export interface AuthUser {
   id: string;
@@ -29,10 +30,43 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+function presenceRequest(endpoint: string, authToken: string): void {
+  fetch(`${API_BASE_URL}/api/presence/${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({ clientType: Platform.OS === "ios" ? "ios" : "android" }),
+  }).catch(() => {});
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tokenRef = useRef<string | null>(null);
+
+  tokenRef.current = token;
+
+  const startHeartbeat = useCallback((authToken: string) => {
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    presenceRequest("connect", authToken);
+    heartbeatRef.current = setInterval(() => {
+      presenceRequest("heartbeat", authToken);
+    }, HEARTBEAT_INTERVAL_MS);
+  }, []);
+
+  const stopHeartbeat = useCallback((authToken: string | null) => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+    if (authToken) {
+      presenceRequest("disconnect", authToken);
+    }
+  }, []);
 
   useEffect(() => {
     if (IS_WEB) {
@@ -56,11 +90,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
         }
       } catch {
-        // Offline — keep token in storage, clear state so login screen shows
       }
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (!token || IS_WEB) return;
+    startHeartbeat(token);
+    return () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+    };
+  }, [token, startHeartbeat]);
+
+  useEffect(() => {
+    if (IS_WEB) return;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const currentToken = tokenRef.current;
+      if (!currentToken) return;
+      if (nextState === "active") {
+        startHeartbeat(currentToken);
+      } else if (nextState === "background" || nextState === "inactive") {
+        stopHeartbeat(currentToken);
+      }
+    });
+    return () => subscription.remove();
+  }, [startHeartbeat, stopHeartbeat]);
 
   const login = useCallback(async (officerNumber: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -114,18 +172,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (token) {
+    const currentToken = token;
+    if (currentToken) {
+      stopHeartbeat(currentToken);
       try {
         await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${currentToken}` },
         });
       } catch { /* ignore */ }
     }
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
     setToken(null);
     setUser(null);
-  }, [token]);
+  }, [token, stopHeartbeat]);
 
   const value = useMemo(() => ({
     user, token, loading, login, register, logout,

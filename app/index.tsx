@@ -54,6 +54,7 @@ import {
   type Code21Type,
   type OfficerNote,
 } from "@/constants/code21";
+import type { SectionBoardRow } from "@shared/schema";
 
 const PANEL_MIN = 196;
 const SWIPE_UP_THRESHOLD = 40;
@@ -61,6 +62,7 @@ const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
 const IS_WEB = Platform.OS === "web";
 const API_BASE_URL = IS_WEB ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
+const BOARD_POLL_INTERVAL_MS = 15_000;
 const HEADING_THRESHOLD = 2;
 const HEADING_UPDATE_INTERVAL = 150;
 const SPRING_CONFIG = { damping: 20, stiffness: 180, overshootClamping: true };
@@ -262,6 +264,7 @@ export default function PatrolMapScreen() {
   const [navDistanceMetres, setNavDistanceMetres] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [routeOrderedRequests, setRouteOrderedRequests] = useState<Code21Request[]>([]);
+  const [assignmentBoard, setAssignmentBoard] = useState<SectionBoardRow[]>([]);
   const tabScrollRef = useRef<ScrollView>(null);
   const { user, token, logout } = useAuth();
   const officerNumber = user?.officerNumber ?? "";
@@ -324,6 +327,24 @@ export default function PatrolMapScreen() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (IS_WEB || !token) return;
+    let cancelled = false;
+    const fetchBoard = () => {
+      fetch(`${API_BASE_URL}/api/sections/assignment-board`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data: { board: SectionBoardRow[] }) => {
+          if (!cancelled && Array.isArray(data.board)) setAssignmentBoard(data.board);
+        })
+        .catch(() => {});
+    };
+    fetchBoard();
+    const interval = setInterval(fetchBoard, BOARD_POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [token]);
 
   // Start watching location + heading once permission is granted
   useEffect(() => {
@@ -459,7 +480,29 @@ export default function PatrolMapScreen() {
     await AsyncStorage.setItem(ASSIGNED_ZONE_KEY, zone.id);
     panelHeight.value = withSpring(PANEL_MIN, SPRING_CONFIG);
     setPanelExpanded(false);
-  }, [panelHeight]);
+    if (token) {
+      fetch(`${API_BASE_URL}/api/sections/${zone.id}/assign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: "{}",
+      })
+        .then((res) => res.json())
+        .then(() => {
+          fetch(`${API_BASE_URL}/api/sections/assignment-board`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((r) => r.json())
+            .then((d: { board: SectionBoardRow[] }) => {
+              if (Array.isArray(d.board)) setAssignmentBoard(d.board);
+            })
+            .catch(() => {});
+        })
+        .catch(() => {});
+    }
+  }, [panelHeight, token]);
 
   const centerOnUser = useCallback(() => {
     if (location && mapRef.current) {
@@ -1389,6 +1432,9 @@ export default function PatrolMapScreen() {
               {PATROL_ZONES.map((zone) => {
                 const isSelected = assignedZone?.id === zone.id;
                 const isCurrent = currentZone?.id === zone.id;
+                const boardRow = assignmentBoard.find((r) => r.sectionId === zone.id);
+                const displayStatus = boardRow?.displayStatus ?? "UNASSIGNED";
+                const showOfficer = displayStatus === "ASSIGNED_ONLINE" && boardRow?.assignedOfficerNumber;
                 return (
                   <Pressable
                     key={zone.id}
@@ -1411,12 +1457,24 @@ export default function PatrolMapScreen() {
                           styles.zoneRowName,
                           isSelected && { color: zone.color },
                         ]}
+                        numberOfLines={1}
                       >
                         {zone.name}
                       </Text>
                       <Text style={styles.zoneRowDesc}>{zone.description}</Text>
                     </View>
                     <View style={styles.zoneRowRight}>
+                      {displayStatus === "ASSIGNED_ONLINE" && (
+                        <View style={[styles.presenceDot, styles.presenceDotOnline]} />
+                      )}
+                      {displayStatus === "ASSIGNED_OFFLINE" && (
+                        <View style={[styles.presenceDot, styles.presenceDotOffline]} />
+                      )}
+                      {showOfficer && (
+                        <Text style={styles.officerBadgeText} numberOfLines={1}>
+                          Officer {boardRow.assignedOfficerNumber}
+                        </Text>
+                      )}
                       {isCurrent && (
                         <View
                           style={[
@@ -2232,7 +2290,7 @@ const styles = StyleSheet.create({
   zoneChip: { flex: 1, gap: 2, alignItems: 'center' },
   zoneChipLabel: {
     fontFamily: "RobotoMono_400Regular",
-    color: Colors.dark.textMuted,
+    color: Colors.dark.textPlaceholder,
     fontSize: 8,
     letterSpacing: 2,
     textAlign: 'center',
@@ -2451,7 +2509,7 @@ const styles = StyleSheet.create({
   },
   pullTabLabel: {
     fontFamily: "RobotoMono_700Bold",
-    color: Colors.dark.textSecondary,
+    color: Colors.dark.textPlaceholder,
     fontSize: 10,
     letterSpacing: 2,
   },
@@ -2570,6 +2628,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginLeft: 8,
+  },
+  presenceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  presenceDotOnline: {
+    backgroundColor: '#10B981',
+  },
+  presenceDotOffline: {
+    backgroundColor: '#3D5A7A',
+  },
+  officerBadgeText: {
+    fontFamily: "RobotoMono_700Bold",
+    color: '#FFFFFF',
+    fontSize: 10,
+    letterSpacing: 0.3,
+    flexShrink: 0,
   },
   hereBadge: {
     borderWidth: 1,

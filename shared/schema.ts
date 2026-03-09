@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { CODE21_TYPES } from "../constants/offenceTypes";
@@ -103,9 +103,63 @@ export const sessions = pgTable("sessions", {
   expiresAt: text("expires_at").notNull(),
 });
 
+export const ASSIGNMENT_STATUSES = ["ACTIVE", "ENDED"] as const;
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+export const DISPLAY_STATUSES = ["UNASSIGNED", "ASSIGNED_OFFLINE", "ASSIGNED_ONLINE"] as const;
+export type DisplayStatus = (typeof DISPLAY_STATUSES)[number];
+
+export const sectionAssignments = pgTable("section_assignments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sectionId: varchar("section_id").notNull(),
+  officerUserId: varchar("officer_user_id").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  assignedByUserId: varchar("assigned_by_user_id"),
+  endedByUserId: varchar("ended_by_user_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("uq_section_active_assignment")
+    .on(table.sectionId)
+    .where(sql`status = 'ACTIVE'`),
+]);
+
+export const userPresence = pgTable("user_presence", {
+  userId: varchar("user_id").primaryKey(),
+  isOnline: boolean("is_online").notNull().default(false),
+  sessionId: varchar("session_id"),
+  connectedAt: timestamp("connected_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  offlineAt: timestamp("offline_at", { withTimezone: true }),
+  clientType: varchar("client_type", { length: 30 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const assignSectionSchema = z.object({
+  officerUserId: z.string().min(1).optional(),
+});
+
+export const presenceConnectSchema = z.object({
+  sessionId: z.string().optional(),
+  clientType: z.enum(["web", "ios", "android"]).optional().default("android"),
+});
+
+export interface SectionBoardRow {
+  sectionId: string;
+  sectionName: string;
+  displayStatus: DisplayStatus;
+  assignedOfficerNumber: string | null;
+  assignedAt: string | null;
+}
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCode21Request = z.infer<typeof insertCode21RequestSchema>;
 export type Code21Request = InsertCode21Request & { id: string; createdAt: string };
 export type Code21Status = "in_progress" | "complete";
 export type Session = typeof sessions.$inferSelect;
+export type SectionAssignment = typeof sectionAssignments.$inferSelect;
+export type UserPresence = typeof userPresence.$inferSelect;

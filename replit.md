@@ -29,10 +29,12 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 - Serves landing page and Expo manifest
 - Port 5000
 - **Database**: PostgreSQL via Drizzle ORM (`server/db.ts` + `server/storage.ts` — `DbStorage`)
-- **Tables**: `users`, `code21_requests`, `sessions` (schema in `shared/schema.ts`, managed by Drizzle)
+- **Tables**: `users`, `code21_requests`, `sessions`, `section_assignments`, `user_presence` (schema in `shared/schema.ts`, managed by Drizzle)
 - **Auth**: Email+officerNumber registration (restricted to `@melbourne.vic.gov.au` TLD), officer number login, session tokens via `sessions` table
-- **Auth Middleware**: `requireAuth` gating all `/api/code21*`, `/api/route`, `/api/elevation` endpoints
+- **Auth Middleware**: `requireAuth` gating all `/api/code21*`, `/api/route`, `/api/elevation`, `/api/presence/*`, `/api/sections/*` endpoints
 - **Auth Endpoints**: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
+- **Presence Endpoints**: `POST /api/presence/connect`, `POST /api/presence/heartbeat`, `POST /api/presence/disconnect`
+- **Assignment Endpoints**: `GET /api/sections/assignment-board`, `POST /api/sections/:sectionId/assign`, `POST /api/sections/:sectionId/unassign`
 - **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage (auth-gated)
 
 ## Key Files
@@ -81,7 +83,7 @@ All zones use proper 4-point polygon coordinates derived from OpenStreetMap inte
 - Real-time zone detection (point-in-polygon ray casting)
 - Magnetic compass with Melbourne CBD street labels (La Trobe=N, Spring=E, Flinders=S, Spencer=W) — 4 cardinal directions only, no sub-directional points
 - Map type toggle (iOS: Dark/Light/Satellite/Hybrid; Android: Standard/Satellite/Hybrid) with dark/light style switching
-- Zone assignment (persisted via AsyncStorage)
+- Zone assignment (persisted via AsyncStorage + server-side `section_assignments` table)
 - Zone info modal showing patrol streets, laneways, and boundary details
 - Out-of-zone warnings
 - Coordinate display with accuracy indicator
@@ -174,6 +176,39 @@ The Code 21 modal has three tabs navigated via horizontal swipe or tab bar tap:
 - `vehicle_model` text field (default: empty string)
 - `officer_notes` text field storing JSON array of `{note, timestamp}` entries (default: "[]")
 - Migration: `migrations/0001_add_vehicle_model_officer_notes.sql`
+
+## Section Assignment & Presence (SPEC-001)
+
+### Overview
+Server-side section assignment and officer presence tracking. Officers on patrol can see who is covering each zone directly in the zone selector list without opening extra screens.
+
+### Database Tables
+- `section_assignments` — tracks which officer is assigned to which zone; unique active assignment per zone enforced via partial unique index
+- `user_presence` — heartbeat-driven online/offline status per user; 30s client heartbeat, 90s server timeout sweeper (runs every 60s)
+- Migration: `migrations/0002_section_assignment_presence.sql`
+
+### Presence Lifecycle
+- Client sends `POST /api/presence/connect` on login / app resume
+- Client sends `POST /api/presence/heartbeat` every 30 seconds while active
+- Client sends `POST /api/presence/disconnect` on logout / app backgrounded
+- Server sweeper marks users offline after 90s without heartbeat
+
+### Assignment Board
+- `GET /api/sections/assignment-board` returns all 15 zones with derived display status:
+  - `UNASSIGNED` — no active assignment
+  - `ASSIGNED_OFFLINE` — assigned but officer is offline
+  - `ASSIGNED_ONLINE` — assigned and officer is online
+- Client polls every 15 seconds for near-real-time updates
+
+### Zone Row Display
+- Each zone row in the selector shows:
+  - Left: zone name + description
+  - Right: presence dot (green=online, grey=offline) + "Officer {number}" in white text (only when ASSIGNED_ONLINE)
+  - HERE badge and checkmark still shown as before
+
+### UI Token Alignment
+- `ASSIGNED`, `CURRENT`, and `SHOW PANEL` labels now use `Colors.dark.textPlaceholder` (#BBBBBB) — matching Code21 form placeholder text colour
+- Single source of truth in `constants/colors.ts`
 
 ## Optimisation History
 

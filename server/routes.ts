@@ -1,10 +1,11 @@
-import { insertCode21RequestSchema, registerUserSchema, loginSchema } from "@shared/schema";
+import { insertCode21RequestSchema, registerUserSchema, loginSchema, presenceConnectSchema } from "@shared/schema";
 import type { Code21Status } from "@shared/schema";
 import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "node:http";
 import { z } from "zod";
 import { hashPassword, verifyPassword } from "./auth";
 import { storage } from "./storage";
+import { PATROL_ZONES } from "../constants/zones";
 
 function isReadyForTraffic(): boolean {
   return true;
@@ -612,6 +613,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch {
       return res.json(locations.map(() => 0));
     }
+  });
+
+  app.post("/api/presence/connect", requireAuth, async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const parsed = presenceConnectSchema.safeParse(req.body);
+    const data = parsed.success ? parsed.data : { clientType: "android" as const };
+    await storage.upsertPresenceOnline(authReq.user.id, data.sessionId, data.clientType);
+    return res.status(200).json({ status: "connected" });
+  });
+
+  app.post("/api/presence/heartbeat", requireAuth, async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    await storage.updatePresenceHeartbeat(authReq.user.id);
+    return res.status(200).json({ status: "ok" });
+  });
+
+  app.post("/api/presence/disconnect", requireAuth, async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    await storage.setPresenceOffline(authReq.user.id);
+    return res.status(200).json({ status: "disconnected" });
+  });
+
+  app.get("/api/sections/assignment-board", requireAuth, async (_req, res) => {
+    const board = await storage.getAssignmentBoard();
+    return res.status(200).json({ board });
+  });
+
+  app.post("/api/sections/:sectionId/assign", requireAuth, async (req, res) => {
+    const sectionId = String(req.params.sectionId);
+    const authReq = req as AuthenticatedRequest;
+
+    const validZone = PATROL_ZONES.find((z) => z.id === sectionId);
+    if (!validZone) {
+      return res.status(400).json({
+        error: { code: "invalid_section", message: "Unknown section ID." },
+      });
+    }
+
+    await storage.assignSection(sectionId, authReq.user.id, authReq.user.id);
+    return res.status(200).json({ status: "assigned", sectionId, officerNumber: authReq.user.officerNumber });
+  });
+
+  app.post("/api/sections/:sectionId/unassign", requireAuth, async (req, res) => {
+    const sectionId = String(req.params.sectionId);
+    const authReq = req as AuthenticatedRequest;
+
+    const validZone = PATROL_ZONES.find((z) => z.id === sectionId);
+    if (!validZone) {
+      return res.status(400).json({
+        error: { code: "invalid_section", message: "Unknown section ID." },
+      });
+    }
+
+    await storage.unassignSection(sectionId, authReq.user.id);
+    return res.status(200).json({ status: "unassigned", sectionId });
   });
 
   const httpServer = createServer(app);
