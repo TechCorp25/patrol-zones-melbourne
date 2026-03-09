@@ -1516,7 +1516,7 @@ export default function PatrolMapScreen() {
                 >
                   {/* Row 1: Officer # (read-only from auth) | Service request # */}
                   <View style={styles.rowInputs}>
-                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, { color: '#FFFFFF', opacity: 1 }]} placeholder="Officer #" placeholderTextColor="#BBBBBB" />
+                    <TextInput value={officerNumber ? `Officer # ${officerNumber}` : ""} editable={false} style={[styles.modalInput, styles.rowInput, { color: '#FFFFFF', opacity: 1 }]} placeholder="Officer #" placeholderTextColor="#BBBBBB" />
                     <TextInput value={serviceRequestNumber} onChangeText={isFormReadOnly ? undefined : setServiceRequestNumber} editable={!isFormReadOnly} style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Service request #" placeholderTextColor="#BBBBBB" />
                   </View>
 

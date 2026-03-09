@@ -323,8 +323,9 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
               rotation={roundedHeading}
               tracksViewChanges={false}
             >
-              <View style={styles.userDot}>
-                <View style={styles.userDotInner} />
+              <View style={styles.spearContainer}>
+                <View style={styles.spearHead} />
+                <View style={styles.spearTail} />
               </View>
             </Marker>
           </>
@@ -339,21 +340,28 @@ PatrolMap.displayName = "PatrolMap";
 export default memo(PatrolMap);
 
 const styles = StyleSheet.create({
-  userDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.dark.tint,
-    borderWidth: 3,
-    borderColor: "#fff",
+  spearContainer: {
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
   },
-  userDotInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#fff",
+  spearHead: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 20,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#00E5FF",
+  },
+  spearTail: {
+    width: 4,
+    height: 8,
+    backgroundColor: "#00E5FF",
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
   },
   pinContainer: {
     alignItems: "center",
