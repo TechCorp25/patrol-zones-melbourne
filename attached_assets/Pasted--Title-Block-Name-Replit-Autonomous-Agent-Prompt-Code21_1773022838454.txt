@@ -1,0 +1,212 @@
+## Title Block
+**Name:** Replit Autonomous Agent Prompt — Code21 Workflow and UI Update  
+**Version:** 1.0.0  
+**Date:** 2026-03-09
+
+## Objective Summary
+Use this prompt with a Replit autonomous AI agent to implement the requested Code21 workflow, permissions, auditability, and UI changes in an existing codebase with minimal regressions and production-grade quality.
+
+**Success metrics**
+- All requested workflow rules are implemented exactly.
+- Existing behavior remains unchanged unless explicitly modified below.
+- Data integrity, legal auditability, and permission handling are preserved or improved.
+- UI remains readable in daylight conditions and visually distinguishes active vs complete forms.
+- Tests cover the new workflow, permission, timestamp, and UI behaviors.
+- Final output includes changed files, reasoning, tests run, and any assumptions.
+
+## Knowledge-Base Inventory Scanned
+The following uploaded knowledge-base files were scanned before producing this prompt:
+
+1. `architecture.md` — applied for composability, single-responsibility, maintainability, and workflow orchestration patterns.
+2. `usage.md` — applied for command/workflow usage style and direct task execution patterns.
+3. `prompt-engineer.md` — applied for the requirement to show the full prompt, include implementation notes, testing, and usage guidance.
+4. `context-manager.md` — applied for context routing, state management, and audit-conscious workflow design.
+5. `docs-architect.md` — applied for structured technical delivery and rationale capture.
+6. `prompt-optimize.md` — applied for optimization, evaluation, and production-readiness framing.
+7. `agents.md` — applied for relevant specialist roles such as backend, frontend, UI/UX, visual validation, and code review.
+8. `agent-skills.md` — applied for modular skill composition and progressive disclosure.
+9. `plugins.md` — applied for mapping the work to backend, frontend, orchestration, testing, review, and refactoring concerns.
+10. `commands.md` — applied for autonomous workflow, full-stack feature, testing, review, security, and refactoring command patterns.
+11. `agent-skills-reference.md` — scanned as supporting guidance for skill structure and invocation.
+12. `Hooks-reference.md` — scanned; not directly applied because this request targets Replit rather than Claude Code hooks.
+13. `claude-code-hooks.md` — scanned; not directly applied because this request targets Replit rather than Claude Code hooks.
+14. `claude-code-setings.md` — scanned; not directly applied because this request targets Replit rather than Claude Code settings.
+
+**Assumption note:** No Replit-specific knowledge-base file was provided. This prompt is therefore written to be platform-compatible with a Replit autonomous agent while grounding its structure in the uploaded architecture, workflow, prompt-engineering, and documentation guidance.
+
+## Agent / Tool Plan
+The prompt below instructs the autonomous agent to emulate a focused multi-role workflow:
+
+- **Context orchestrator** for codebase discovery, task sequencing, and state management.
+- **Backend architect** for schema/state/permission/audit logic.
+- **Frontend developer** for UI implementation and state wiring.
+- **UI/UX designer** for readability, hierarchy, and layout movement.
+- **UI visual validator** for contrast and daylight legibility checks.
+- **JavaScript / TypeScript specialist** for implementation quality where relevant.
+- **Refactoring + code reviewer** for minimal diffs, maintainability, and regression prevention.
+- **Error detective** for validating flows and edge cases after implementation.
+
+## Operating Constraints & Definitions
+- Work inside the existing architecture. Reuse current domain models, status enums, validation patterns, and UI conventions wherever possible.
+- Do not introduce broad rewrites, duplicate abstractions, or speculative refactors.
+- Keep changes narrowly scoped, but production-grade.
+- Preserve backward compatibility for existing records unless a migration is strictly required.
+- Prefer server-generated timestamps for legal/audit-critical fields. If the app is architected around a single trusted backend time source, use that source rather than client/device time.
+- Preserve the original request creation time exactly as-is.
+- Treat “offence time” as a separate field from the original request time.
+- Treat “officer notes” added after read-only as append-only audit entries with timestamped saves.
+- Read-only means permanent read-only for the protected fields once requirements are satisfied and saved; the post-read-only officer-notes mechanism must remain available.
+- Use accessible contrast and maintain clear state distinction between active and complete saved forms.
+- Add or update tests for workflow logic, timestamps, permissions, and UI rendering.
+- If implementation details are missing, inspect the codebase and follow existing patterns. Do not block on uncertainty; make the most consistent choice and document it in the final report.
+
+## The Prompt
+```md
+You are an autonomous senior software engineer operating inside an existing Replit project.
+
+Your job is to implement a production-grade update to the Code21 workflow and UI with minimal regressions, strong auditability, and best-in-class code quality.
+
+Follow this execution model:
+1. Inspect the codebase and locate every source of truth for:
+   - Code21 request form creation and editing
+   - PIN handling
+   - Saved forms lists and status rendering
+   - Read-only state logic
+   - Form permissions / author access rules
+   - Officer notes storage and rendering
+   - Assigned section / current section UI components
+   - Top section and bottom tab layout components
+2. Produce a brief implementation plan based on actual code structure.
+3. Implement the changes in the smallest clean set of edits.
+4. Add or update tests.
+5. Run the relevant test suite and static checks.
+6. Perform a final review for correctness, readability, accessibility, and regression risk.
+7. Return a concise implementation report with changed files, logic summary, tests run, and any assumptions.
+
+Non-negotiable engineering rules:
+- Keep all code best in class: readable, maintainable, cohesive, and minimal.
+- Do not rewrite unrelated code.
+- Reuse existing patterns, types, services, validators, status enums, hooks, and design tokens where appropriate.
+- Preserve existing behavior unless this prompt explicitly changes it.
+- Prefer server-side or authoritative persisted timestamps for legal/audit-critical fields.
+- Keep data migrations safe and backward compatible.
+- Preserve existing records and status flows unless a direct change is required.
+- If a requirement maps imperfectly to current architecture, implement the closest clean solution and document the decision.
+
+Implement the following requirements exactly:
+
+## A. New request form changes
+1. Update placeholder text color to light grey.
+2. Update input text color to `#FFFF00`.
+3. Once a PIN is added to the form and the form is saved, additional data points are required before the form can enter permanent read-only state:
+   - vehicle make
+   - vehicle model
+   - vehicle color
+   - vehicle rego
+   - offence type
+   - offence location
+4. When a PIN is added to the form and the form is saved, automatically create a new system-generated field/value on the form called `offence time`.
+   - This must be the save time of the form at the moment it is saved containing a PIN.
+   - The original time already on the form must remain present and unchanged from the time the Code21 request was originally generated.
+   - `offence time` must not overwrite or mutate the original request time.
+   - If the codebase supports repeated saves after PIN entry, set `offence time` when the form first transitions into a PIN-present saved state, and keep it stable afterward unless the current architecture clearly requires a one-time repair for missing historical data.
+
+## B. Read-only state rules
+1. A form must not enter permanent read-only state merely because a PIN exists.
+2. Permanent read-only state is allowed only after all of the following are present and saved:
+   - PIN
+   - vehicle make
+   - vehicle model
+   - vehicle color
+   - vehicle rego
+   - offence type
+   - offence location
+3. If a PIN is present but one or more required fields are missing, keep the relevant form fields editable and surface validation using the project’s existing UX pattern.
+4. Once the protected fields enter permanent read-only state, they remain read-only.
+5. Post-read-only officer notes must still be allowed as described below.
+
+## C. Saved forms visual updates
+1. For saved forms that are `in progress` / active:
+   - update text color to a highly saturated contrasting color against the existing form background
+   - optimize for clear daylight legibility on devices
+   - use existing design tokens if available; otherwise choose a high-contrast saturated color that fits the theme without reducing readability
+2. For saved forms that are `in progress` but complete and not yet archived:
+   - update text color to a contrasting color at 50% opacity to distinguish complete from active
+   - keep distinction visibly clear from active forms
+   - update completed strike-through color to `#00ff00`
+   - ensure this remains legible in daylight conditions
+3. Do not degrade archived/completed readability.
+
+## D. Permissions and read access
+1. Update permissions for all Code21 forms that are:
+   - completed
+   - completed + archived
+2. The logged-in user must be allowed to open and read those forms if that user is the author.
+3. Apply this cleanly through the existing permission / authorization model rather than ad hoc front-end-only logic.
+4. Preserve stricter access rules for non-authors unless existing requirements already specify otherwise.
+
+## E. Officer notes after read-only
+1. Update the form so additional `officer notes` can be added after the form has entered read-only state.
+2. These notes must not unlock or alter protected read-only fields.
+3. Each additional note must be timestamped with date and time at the moment that note is saved.
+4. Implement this as an append-only audit-friendly note history if the current data model allows.
+5. Preserve prior notes and make ordering unambiguous.
+6. Use the same trusted timestamp source/pattern used for other legal/audit fields in the codebase.
+
+## F. UI layout changes
+### Top section
+1. Move the information display for:
+   - assigned section
+   - current section
+   into the bottom tab section.
+2. Retain the notification bar indicating either:
+   - `currently in assigned section`
+   - `out of assigned section`
+3. Move that notification bar into the now-vacant space previously occupied by the assigned/current section information display.
+
+### Bottom tab section
+1. Remove the additional assigned section display that becomes redundant after the assigned/current section information is moved there.
+2. Ensure the bottom tab section has a clean, non-duplicative layout and preserves current responsiveness.
+
+## G. Data model and migration expectations
+1. Inspect existing entities and state models before adding fields.
+2. If needed, add:
+   - `offenceTime`
+   - structured post-read-only officer note entries with timestamps
+3. Do not duplicate existing fields if semantically equivalent fields already exist.
+4. Add safe default handling for historical forms that do not yet have `offence time` or note-entry timestamps.
+5. Avoid destructive migrations.
+
+## H. Testing requirements
+Add or update tests that cover at minimum:
+1. `offence time` is created when a form is first saved with a PIN.
+2. Original request time remains unchanged.
+3. Read-only state is blocked until all required post-PIN data exists.
+4. Protected fields become permanently read-only once the full requirement set is satisfied and saved.
+5. Officer notes can still be added after read-only.
+6. Officer notes receive save-time timestamps.
+7. Author can open/read completed and completed+archived forms.
+8. Non-author access behavior is unchanged unless already required elsewhere.
+9. Saved-form UI state styling clearly distinguishes:
+   - active
+   - complete not archived
+10. Top-section / bottom-tab layout changes render correctly without duplication.
+
+## I. Final implementation standards
+Before finishing:
+- run tests and linting relevant to the stack
+- check for type errors
+- verify no duplicated section display remains
+- verify no existing timestamp field was unintentionally repurposed
+- verify colors and opacity are actually applied in the rendered UI
+- verify permission changes are enforced by the true source of authorization
+- verify append-only officer notes preserve legal transparency
+
+Deliver a final report with:
+1. summary of what changed
+2. files changed
+3. any schema/data model changes
+4. any migration/backfill behavior
+5. tests added/updated
+6. commands run
+7. assumptions made
