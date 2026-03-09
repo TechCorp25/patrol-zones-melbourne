@@ -323,9 +323,9 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
               rotation={roundedHeading}
               tracksViewChanges={false}
             >
-              <View style={styles.spearContainer}>
-                <View style={styles.spearHead} />
-                <View style={styles.spearTail} />
+              <View style={styles.arrowContainer}>
+                <View style={styles.arrowOutline} />
+                <View style={styles.arrowFill} />
               </View>
             </Marker>
           </>
@@ -340,28 +340,34 @@ PatrolMap.displayName = "PatrolMap";
 export default memo(PatrolMap);
 
 const styles = StyleSheet.create({
-  spearContainer: {
-    width: 32,
-    height: 32,
+  arrowContainer: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  spearHead: {
+  arrowOutline: {
+    position: "absolute",
     width: 0,
     height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderBottomWidth: 20,
+    borderLeftWidth: 16,
+    borderRightWidth: 16,
+    borderBottomWidth: 32,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: "#00E5FF",
+    borderBottomColor: "#0A1628",
   },
-  spearTail: {
-    width: 4,
-    height: 8,
-    backgroundColor: "#00E5FF",
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+  arrowFill: {
+    position: "absolute",
+    top: 6,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 24,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#FF6B00",
   },
   pinContainer: {
     alignItems: "center",

@@ -554,17 +554,18 @@ export default function PatrolMapScreen() {
       setRouteOrderedRequests([]);
       return;
     }
+    let cancelled = false;
     const timer = setTimeout(() => {
       const loc = locationRef.current;
       if (!loc) {
-        setRouteOrderedRequests([...inProgressRequests]);
+        if (!cancelled) setRouteOrderedRequests([...inProgressRequests]);
         return;
       }
       void optimiseWithTerrainAndSLA(inProgressRequests, loc, travelMode, API_BASE_URL, token)
-        .then(setRouteOrderedRequests)
-        .catch(() => { setRouteOrderedRequests([...inProgressRequests]); });
+        .then((result) => { if (!cancelled) setRouteOrderedRequests(result); })
+        .catch(() => { if (!cancelled) setRouteOrderedRequests([...inProgressRequests]); });
     }, 800);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [inProgressRequests, travelMode, token]);
   const filteredVehicleMakes = useMemo(
     () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
@@ -708,11 +709,15 @@ export default function PatrolMapScreen() {
     }
   }, [archiveQuery, token]);
 
+  const routeAbortRef = useRef<AbortController | null>(null);
+
   const fetchOptimisedRoute = useCallback(async (
     orderedRequests: Code21Request[],
     mode: "foot" | "vehicle",
     currentLocation: { latitude: number; longitude: number } | null,
   ) => {
+    if (routeAbortRef.current) routeAbortRef.current.abort();
+
     if (orderedRequests.length === 0) {
       setRoutePolyline([]);
       setRouteInfo(null);
@@ -723,15 +728,24 @@ export default function PatrolMapScreen() {
       waypoints.push({ lat: currentLocation.latitude, lng: currentLocation.longitude });
     }
     waypoints.push(...orderedRequests.map((r) => ({ lat: r.latitude, lng: r.longitude })));
-    if (waypoints.length < 2) return;
+    if (waypoints.length < 2) {
+      setRoutePolyline([]);
+      setRouteInfo(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
 
     setIsFetchingRoute(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/route`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ waypoints, mode }),
+        body: JSON.stringify({ waypoints: waypoints.slice(0, 25), mode }),
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       if (response.ok) {
         const data = await response.json() as {
           polyline: { latitude: number; longitude: number }[];
@@ -739,13 +753,15 @@ export default function PatrolMapScreen() {
           durationSeconds: number;
           legs: { distanceMetres: number; durationSeconds: number }[];
         };
-        setRoutePolyline(data.polyline);
-        setRouteInfo({ distanceMetres: data.distanceMetres, durationSeconds: data.durationSeconds, legs: data.legs });
+        if (!controller.signal.aborted) {
+          setRoutePolyline(data.polyline);
+          setRouteInfo({ distanceMetres: data.distanceMetres, durationSeconds: data.durationSeconds, legs: data.legs });
+        }
       }
-    } catch {
-      // Fail silently; map shows without polyline
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
     } finally {
-      setIsFetchingRoute(false);
+      if (!controller.signal.aborted) setIsFetchingRoute(false);
     }
   }, [token]);
 
@@ -1016,15 +1032,15 @@ export default function PatrolMapScreen() {
 
   useEffect(() => {
     if (routeOrderedRequests.length === 0) {
+      if (routeAbortRef.current) { routeAbortRef.current.abort(); routeAbortRef.current = null; }
       setRoutePolyline([]);
       setRouteInfo(null);
       return;
     }
     const timeout = setTimeout(() => {
-      // Use locationRef so we always read the live position, not a stale closure value
       void fetchOptimisedRoute(routeOrderedRequests, travelMode, locationRef.current);
     }, 800);
-    return () => clearTimeout(timeout);
+    return () => { clearTimeout(timeout); };
   }, [routeOrderedRequests, travelMode, fetchOptimisedRoute]);
 
   const mapDestinations = useMemo(

@@ -80,6 +80,7 @@ All zones use proper 4-point polygon coordinates derived from OpenStreetMap inte
 
 ## Features
 - Live GPS position (updates every 2s / 3m distance)
+- High-contrast directional arrowhead marker (orange fill #FF6B00 with dark outline #0A1628) — visible on all map styles including dark and satellite
 - Real-time zone detection (point-in-polygon ray casting)
 - Magnetic compass with Melbourne CBD street labels (La Trobe=N, Spring=E, Flinders=S, Spencer=W) — 4 cardinal directions only, no sub-directional points
 - Map type toggle (iOS: Dark/Light/Satellite/Hybrid; Android: Standard/Satellite/Hybrid) with dark/light style switching
@@ -91,6 +92,14 @@ All zones use proper 4-point polygon coordinates derived from OpenStreetMap inte
 - Compass heading with Melbourne CBD grid-relative direction labels (Toward La Trobe/Spring/Flinders/Spencer)
 - Parking zone numbers displayed for the current street segment (711 zones across 491 segments, amber-colored "P" prefix)
 - Collapsible bottom panel — minimize button (chevron-down) hides the panel entirely to maximize map view; pull-tab with swipe-up gesture or tap restores it. Overlay buttons (map type, zone info, locate) animate position smoothly with panel state
+
+## EAS Build / App Store Preparation
+- `expo-dev-client` installed for custom development builds (replaces Expo Go)
+- `eas.json` created with three build profiles: `development` (dev client, internal distribution), `preview` (internal distribution), `production` (auto-increment versioning)
+- Android Google Maps API key placeholder added to `app.json` — replace `GOOGLE_MAPS_API_KEY_PLACEHOLDER` with real key before building
+- To build: `eas build --profile development --platform ios` (or `android`)
+- To submit: `eas submit --platform ios` (or `android`)
+- Still needed before store submission: EAS project initialization (`eas project:init`), production credentials, privacy policy URL, real Google Maps API key
 
 ## Zone Audit (Completed)
 All 15 patrol zone `patrolStreets` definitions have been audited and corrected against Melbourne CBD geography and parking zone data. Key fixes applied:
@@ -249,6 +258,7 @@ Three targeted fixes in `app/index.tsx`. All verified via `tsc --noEmit` (zero e
 - Stale-closure route location — the route-fetching `useEffect` called `fetchOptimisedRoute(..., location)` where `location` was a stale closure variable captured from the render that created the timeout. Fixed by reading `locationRef.current` inside the `setTimeout` callback so OSRM always receives the live position; `fetchOptimisedRoute` added to the effect's dependency array and the suppression comment removed.
 - Unhandled optimisation rejection — `optimiseWithTerrainAndSLA` promise was chained with `.then()` only; added `.catch()` that falls back to the unoptimised request order so a transient elevation API failure can't silently crash the routing chain.
 - `Linking.openURL` unhandled rejection — wrapped in `.catch()` to show an `Alert` if Google Maps cannot be opened on the device.
+- Route fetch race condition — saving Code21 entries triggers `inProgressRequests` → optimise → `fetchOptimisedRoute` cascade; concurrent OSRM fetches could corrupt state. Fixed by adding `AbortController` to `fetchOptimisedRoute` (aborts prior in-flight request on each new call), adding `cancelled` flag to optimise effect, clearing polyline/routeInfo in the early-exit branch, and slicing waypoints to 25 max to match server-side limit.
 
 **Full Codebase Audit Pass (2026-03-08)**
 Applied comprehensive audit fixes across frontend and backend. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and smoke test.
