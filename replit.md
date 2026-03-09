@@ -126,20 +126,53 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Run: `python scripts/generate_melbourne_cbd_street_blocks.py --outdir scripts/out --single`
 - Dependencies: requests, shapely, rtree, pyproj, tqdm, orjson (+ libspatialindex system dep)
 
-## Code 21 Modal — Two-Tab Workflow
+## Code 21 Modal — Three-Tab Workflow
 
-The Code 21 modal has two tabs navigated via horizontal swipe or tab bar tap:
+The Code 21 modal has three tabs navigated via horizontal swipe or tab bar tap:
 
-- **NEW REQUEST / EDIT REQUEST (Tab 0)**: Full form for initiating a physical attendance — address search, offence type, vehicle details, dispatch/attendance notes, PIN, travel mode. Save adds an optimistic map marker immediately; server persists in background.
-- **IN PROGRESS (Tab 1)**: Live list of all active Code 21 requests. Each item shows address, offence type, and date/time with two actions:
-  - **Edit** (pencil icon): Loads the request into Tab 0 for amendment without creating a duplicate
-  - **Mark Complete** (tick icon): Optimistically removes the item from the list and PATCHes `status = "complete"` to the server
+- **NEW REQUEST / EDIT REQUEST (Tab 0)**: Full form for initiating a physical attendance — address search, offence type, vehicle details (make, model, colour, rego), dispatch/attendance notes, PIN, officer notes, travel mode. Save adds an optimistic map marker immediately; server persists in background. Input text rendered in #FFFF00, placeholders in light grey.
+- **IN PROGRESS (Tab 1)**: Live list of all active and recently completed Code 21 requests. Active items use #00E5FF (cyan) for high-contrast daylight visibility. Complete items use 50% opacity with #00ff00 green strike-through. Both active and completed forms can be opened by the author (edit for active, read-only view for completed).
+- **ARCHIVE (Tab 2)**: Search historical records by SR# or Officer#.
+
+### Read-Only State & PIN Workflow
+- A PIN alone does NOT trigger read-only state
+- Permanent read-only requires ALL of: PIN, vehicle make, vehicle model, vehicle colour, vehicle rego, offence type, offence location (address)
+- Missing fields are surfaced via validation warning when PIN is saved but fields incomplete
+- Once all requirements satisfied and saved, protected fields become permanently read-only
+- Officer notes can still be added after read-only (append-only with server-generated timestamps)
+
+### Offence Time
+- Auto-generated when a form is first saved with a PIN present
+- Set to the server-side save timestamp at that moment
+- Stable after initial creation (not overwritten on subsequent saves)
+- Original request time (`requestTime`) preserved unchanged
+
+### Officer Notes
+- Append-only audit trail with timestamped entries
+- Available before and after read-only state
+- Each note receives a save-time timestamp
+- Stored as JSON array in `officer_notes` column
+- Server endpoint: `POST /api/code21/:id/notes`
+
+### Permissions
+- Author (matching officerNumber) can open and read completed and archived forms
+- Non-author access restricted via server-side enforcement
+- `PUT /api/code21/:id` for form updates, `GET /api/code21/:id` for individual read access
+
+### UI Layout
+- Assigned/Current zone display moved from header to bottom panel (below compass row)
+- Alert banner (in/out of assigned zone) remains in header, moved up to vacated space
+- Redundant assigned badge removed from bottom panel right section
 
 ### Status Lifecycle
 - New requests default to `status: "in_progress"`
 - Completed requests are removed from Tab 1 and the route optimiser, but their map markers remain for the session
 - `PATCH /api/code21/:id` endpoint updates status in the database
-- `status` column added to `code21_requests` table (DB migration applied)
+
+### Data Model
+- `vehicle_model` text field (default: empty string)
+- `officer_notes` text field storing JSON array of `{note, timestamp}` entries (default: "[]")
+- Migration: `migrations/0001_add_vehicle_model_officer_notes.sql`
 
 ## Optimisation History
 

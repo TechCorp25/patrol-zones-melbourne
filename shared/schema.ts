@@ -63,12 +63,14 @@ export const code21Requests = pgTable("code21_requests", {
   attendanceNotes: text("attendance_notes").notNull(),
   pin: text("pin").notNull().default(""),
   vehicleMake: text("vehicle_make").notNull().default(""),
+  vehicleModel: text("vehicle_model").notNull().default(""),
   vehicleColour: text("vehicle_colour").notNull().default(""),
   vehicleRego: text("vehicle_rego").notNull().default(""),
   travelMode: text("travel_mode").notNull(),
   description: text("description").notNull(),
   formattedDocument: text("formatted_document").notNull().default(""),
   status: text("status").notNull().default("in_progress"),
+  officerNotes: text("officer_notes").notNull().default("[]"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -85,11 +87,13 @@ export const insertCode21RequestSchema = createInsertSchema(code21Requests)
     serviceRequestNumber: z.string().optional().default(""),
     pin: z.string().optional().default(""),
     vehicleMake: z.string().optional().default(""),
+    vehicleModel: z.string().optional().default(""),
     vehicleColour: z.string().optional().default(""),
     vehicleRego: z.string().optional().default(""),
     formattedDocument: z.string().optional().default(""),
     travelMode: z.enum(["foot", "vehicle"]),
     status: z.enum(["in_progress", "complete"]).optional().default("in_progress"),
+    officerNotes: z.string().optional().default("[]"),
   });
 
 export const sessions = pgTable("sessions", {

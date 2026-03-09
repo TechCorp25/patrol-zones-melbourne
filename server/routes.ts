@@ -262,10 +262,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const authReq = req as AuthenticatedRequest;
-    const created = await storage.createCode21Request({
-      ...parsed.data,
-      officerNumber: authReq.user.officerNumber,
-    });
+    const data = { ...parsed.data, officerNumber: authReq.user.officerNumber };
+
+    if (data.pin && data.pin.trim() !== "") {
+      data.offenceTime = new Date().toISOString();
+    }
+
+    const created = await storage.createCode21Request(data);
 
     return res.status(201).json({ request: created });
   });
@@ -282,6 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/code21/archive", requireAuth, async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
     const parsed = archiveSearchSchema.safeParse(req.query);
 
     if (!parsed.success) {
@@ -294,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    const requests = await storage.searchCode21Archive(parsed.data.q);
+    const requests = await storage.searchCode21Archive(parsed.data.q, authReq.user.officerNumber);
 
     return res.status(200).json({ requests });
   });
@@ -305,10 +309,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/code21/:id", requireAuth, async (req, res) => {
     const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
 
     if (!id || typeof id !== "string") {
       return res.status(400).json({
         error: { code: "invalid_id", message: "Missing or invalid request ID." },
+      });
+    }
+
+    const existing = await storage.getCode21RequestById(id);
+    if (!existing) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    if (existing.officerNumber !== authReq.user.officerNumber) {
+      return res.status(403).json({
+        error: { code: "forbidden", message: "You can only update your own requests." },
       });
     }
 
@@ -333,6 +351,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     return res.status(200).json({ request: updated });
+  });
+
+  const updateCode21Schema = z.object({
+    serviceRequestNumber: z.string().optional(),
+    offenceDate: z.string().optional(),
+    offenceTime: z.string().optional(),
+    offenceType: z.string().optional(),
+    code21Type: z.string().optional(),
+    dispatchNotes: z.string().optional(),
+    attendanceNotes: z.string().optional(),
+    pin: z.string().optional(),
+    vehicleMake: z.string().optional(),
+    vehicleModel: z.string().optional(),
+    vehicleColour: z.string().optional(),
+    vehicleRego: z.string().optional(),
+    formattedDocument: z.string().optional(),
+    description: z.string().optional(),
+  });
+
+  app.put("/api/code21/:id", requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({
+        error: { code: "invalid_id", message: "Missing or invalid request ID." },
+      });
+    }
+
+    const existing = await storage.getCode21RequestById(id);
+    if (!existing) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    if (existing.officerNumber !== authReq.user.officerNumber) {
+      return res.status(403).json({
+        error: { code: "forbidden", message: "You can only edit your own requests." },
+      });
+    }
+
+    const parsed = updateCode21Schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid update payload.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const data = parsed.data;
+
+    if (data.pin && data.pin.trim() !== "" && (!existing.offenceTime || existing.offenceTime === "")) {
+      data.offenceTime = new Date().toISOString();
+    }
+
+    const updated = await storage.updateCode21Request(id, data);
+
+    if (!updated) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    return res.status(200).json({ request: updated });
+  });
+
+  const appendNoteSchema = z.object({
+    note: z.string().min(1).max(2000),
+  });
+
+  app.post("/api/code21/:id/notes", requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({
+        error: { code: "invalid_id", message: "Missing or invalid request ID." },
+      });
+    }
+
+    const existing = await storage.getCode21RequestById(id);
+    if (!existing) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    if (existing.officerNumber !== authReq.user.officerNumber) {
+      return res.status(403).json({
+        error: { code: "forbidden", message: "You can only add notes to your own requests." },
+      });
+    }
+
+    const parsed = appendNoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          code: "validation_error",
+          message: "Invalid note payload.",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const updated = await storage.appendOfficerNote(id, parsed.data.note);
+
+    if (!updated) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    return res.status(200).json({ request: updated });
+  });
+
+  app.get("/api/code21/:id", requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({
+        error: { code: "invalid_id", message: "Missing or invalid request ID." },
+      });
+    }
+
+    const existing = await storage.getCode21RequestById(id);
+    if (!existing) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Code 21 request not found." },
+      });
+    }
+
+    if (existing.officerNumber !== authReq.user.officerNumber) {
+      return res.status(403).json({
+        error: { code: "forbidden", message: "You can only view your own requests." },
+      });
+    }
+
+    return res.status(200).json({ request: existing });
   });
 
   const routeRequestSchema = z.object({

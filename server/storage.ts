@@ -1,4 +1,4 @@
-import { eq, lt, or, ilike } from "drizzle-orm";
+import { and, eq, lt, or, ilike } from "drizzle-orm";
 import { type User, type InsertUser, type Code21Request, type InsertCode21Request, type Code21Status, type Session, users, code21Requests, sessions } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateSessionToken } from "./auth";
@@ -21,7 +21,10 @@ export interface IStorage {
   createCode21Request(request: InsertCode21Request): Promise<Code21Request>;
   getCode21RequestsByOfficerNumber(officerNumber: string): Promise<Code21Request[]>;
   updateCode21RequestStatus(id: string, status: Code21Status): Promise<Code21Request | null>;
-  searchCode21Archive(query: string): Promise<Code21Request[]>;
+  updateCode21Request(id: string, data: Partial<InsertCode21Request>): Promise<Code21Request | null>;
+  getCode21RequestById(id: string): Promise<Code21Request | null>;
+  appendOfficerNote(id: string, note: string): Promise<Code21Request | null>;
+  searchCode21Archive(query: string, officerNumber: string): Promise<Code21Request[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -133,16 +136,100 @@ export class DbStorage implements IStorage {
     } as unknown as Code21Request;
   }
 
-  async searchCode21Archive(query: string): Promise<Code21Request[]> {
+  async getCode21RequestById(id: string): Promise<Code21Request | null> {
+    const rows = await db
+      .select()
+      .from(code21Requests)
+      .where(eq(code21Requests.id, id))
+      .limit(1);
+
+    if (!rows[0]) return null;
+
+    return {
+      ...rows[0],
+      latitude: Number(rows[0].latitude),
+      longitude: Number(rows[0].longitude),
+    } as unknown as Code21Request;
+  }
+
+  async updateCode21Request(id: string, data: Partial<InsertCode21Request>): Promise<Code21Request | null> {
+    const updateData: Record<string, unknown> = {};
+    if (data.serviceRequestNumber !== undefined) updateData.serviceRequestNumber = data.serviceRequestNumber;
+    if (data.offenceDate !== undefined) updateData.offenceDate = data.offenceDate;
+    if (data.offenceTime !== undefined) updateData.offenceTime = data.offenceTime;
+    if (data.offenceType !== undefined) updateData.offenceType = data.offenceType;
+    if (data.code21Type !== undefined) updateData.code21Type = data.code21Type;
+    if (data.dispatchNotes !== undefined) updateData.dispatchNotes = data.dispatchNotes;
+    if (data.attendanceNotes !== undefined) updateData.attendanceNotes = data.attendanceNotes;
+    if (data.pin !== undefined) updateData.pin = data.pin;
+    if (data.vehicleMake !== undefined) updateData.vehicleMake = data.vehicleMake;
+    if (data.vehicleModel !== undefined) updateData.vehicleModel = data.vehicleModel;
+    if (data.vehicleColour !== undefined) updateData.vehicleColour = data.vehicleColour;
+    if (data.vehicleRego !== undefined) updateData.vehicleRego = data.vehicleRego;
+    if (data.formattedDocument !== undefined) updateData.formattedDocument = data.formattedDocument;
+    if (data.description !== undefined) updateData.description = data.description;
+
+    if (Object.keys(updateData).length === 0) return this.getCode21RequestById(id);
+
+    const rows = await db
+      .update(code21Requests)
+      .set(updateData)
+      .where(eq(code21Requests.id, id))
+      .returning();
+
+    if (!rows[0]) return null;
+
+    return {
+      ...rows[0],
+      latitude: Number(rows[0].latitude),
+      longitude: Number(rows[0].longitude),
+    } as unknown as Code21Request;
+  }
+
+  async appendOfficerNote(id: string, note: string): Promise<Code21Request | null> {
+    const existing = await this.getCode21RequestById(id);
+    if (!existing) return null;
+
+    let notes: { note: string; timestamp: string }[] = [];
+    try {
+      notes = JSON.parse(existing.officerNotes || "[]");
+    } catch {
+      notes = [];
+    }
+
+    notes.push({
+      note,
+      timestamp: new Date().toISOString(),
+    });
+
+    const rows = await db
+      .update(code21Requests)
+      .set({ officerNotes: JSON.stringify(notes) })
+      .where(eq(code21Requests.id, id))
+      .returning();
+
+    if (!rows[0]) return null;
+
+    return {
+      ...rows[0],
+      latitude: Number(rows[0].latitude),
+      longitude: Number(rows[0].longitude),
+    } as unknown as Code21Request;
+  }
+
+  async searchCode21Archive(query: string, officerNumber: string): Promise<Code21Request[]> {
     const escaped = query.replace(/[%_\\]/g, (ch) => `\\${ch}`);
     const pattern = `%${escaped}%`;
     const rows = await db
       .select()
       .from(code21Requests)
       .where(
-        or(
-          ilike(code21Requests.serviceRequestNumber, pattern),
-          ilike(code21Requests.officerNumber, pattern),
+        and(
+          eq(code21Requests.officerNumber, officerNumber),
+          or(
+            ilike(code21Requests.serviceRequestNumber, pattern),
+            ilike(code21Requests.officerNumber, pattern),
+          ),
         ),
       )
       .limit(100);

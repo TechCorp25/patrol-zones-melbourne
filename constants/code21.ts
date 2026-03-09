@@ -35,6 +35,42 @@ const VEHICLE_MAKES = [
   "Holden",
 ] as const;
 
+const VEHICLE_MODELS = [
+  "Corolla",
+  "Camry",
+  "HiLux",
+  "RAV4",
+  "Ranger",
+  "Focus",
+  "Mustang",
+  "i30",
+  "Tucson",
+  "Cerato",
+  "Sportage",
+  "Mazda3",
+  "CX-5",
+  "Outlander",
+  "ASX",
+  "X-Trail",
+  "Qashqai",
+  "Impreza",
+  "Outback",
+  "Golf",
+  "Polo",
+  "C-Class",
+  "A-Class",
+  "3 Series",
+  "X3",
+  "A3",
+  "Q5",
+  "Civic",
+  "CR-V",
+  "IS",
+  "RX",
+  "Commodore",
+  "Astra",
+] as const;
+
 const VEHICLE_COLOURS = [
   "White",
   "Black",
@@ -48,6 +84,11 @@ const VEHICLE_COLOURS = [
   "Brown",
   "Gold",
 ] as const;
+
+export interface OfficerNote {
+  note: string;
+  timestamp: string;
+}
 
 export interface Code21Request {
   id: string;
@@ -65,12 +106,14 @@ export interface Code21Request {
   attendanceNotes: string;
   pin: string;
   vehicleMake: string;
+  vehicleModel: string;
   vehicleColour: string;
   vehicleRego: string;
   travelMode: "foot" | "vehicle";
   description: string;
   formattedDocument: string;
   status: "in_progress" | "complete";
+  officerNotes: string;
   createdAt: string;
 }
 
@@ -87,6 +130,10 @@ export function getCode21Types(): readonly Code21Type[] {
 
 export function getVehicleMakes(): readonly string[] {
   return VEHICLE_MAKES;
+}
+
+export function getVehicleModels(): readonly string[] {
+  return VEHICLE_MODELS;
 }
 
 export function getVehicleColours(): readonly string[] {

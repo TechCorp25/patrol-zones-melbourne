@@ -47,10 +47,12 @@ import {
   getCode21Types,
   getVehicleColours,
   getVehicleMakes,
+  getVehicleModels,
   searchAddressOptions,
   searchFilterOptions,
   type Code21Request,
   type Code21Type,
+  type OfficerNote,
 } from "@/constants/code21";
 
 const PANEL_MIN = 196;
@@ -275,10 +277,14 @@ export default function PatrolMapScreen() {
   const [pinIssued, setPinIssued] = useState(false);
   const [savedWithPin, setSavedWithPin] = useState(false);
   const [vehicleMakeQuery, setVehicleMakeQuery] = useState("");
+  const [vehicleModelQuery, setVehicleModelQuery] = useState("");
   const [vehicleColourQuery, setVehicleColourQuery] = useState("");
   const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleColour, setVehicleColour] = useState("");
   const [vehicleRego, setVehicleRego] = useState("");
+  const [officerNoteText, setOfficerNoteText] = useState("");
+  const [officerNotes, setOfficerNotes] = useState<OfficerNote[]>([]);
   const [travelMode, setTravelMode] = useState<"foot" | "vehicle">("foot");
 
   const mapRef = useRef<any>(null);
@@ -521,6 +527,10 @@ export default function PatrolMapScreen() {
     () => searchFilterOptions(vehicleMakeQuery, getVehicleMakes(), 3),
     [vehicleMakeQuery],
   );
+  const filteredVehicleModels = useMemo(
+    () => searchFilterOptions(vehicleModelQuery, getVehicleModels(), 3),
+    [vehicleModelQuery],
+  );
   const filteredVehicleColours = useMemo(
     () => searchFilterOptions(vehicleColourQuery, getVehicleColours(), 3),
     [vehicleColourQuery],
@@ -558,6 +568,32 @@ export default function PatrolMapScreen() {
     return new Date().toISOString();
   }, [offenceDate, offenceTime]);
 
+  const hasAllRequiredFields = useMemo(() => {
+    return !!(
+      pinIssued && pinValue.trim() &&
+      vehicleMake.trim() &&
+      vehicleModel.trim() &&
+      vehicleColour.trim() &&
+      vehicleRego.trim() &&
+      code21Type &&
+      selectedAddress
+    );
+  }, [pinIssued, pinValue, vehicleMake, vehicleModel, vehicleColour, vehicleRego, code21Type, selectedAddress]);
+
+  const isFormReadOnly = savedWithPin && hasAllRequiredFields;
+
+  const missingRequiredFields = useMemo(() => {
+    if (!savedWithPin) return [];
+    const missing: string[] = [];
+    if (!vehicleMake.trim()) missing.push("Vehicle Make");
+    if (!vehicleModel.trim()) missing.push("Vehicle Model");
+    if (!vehicleColour.trim()) missing.push("Vehicle Colour");
+    if (!vehicleRego.trim()) missing.push("Vehicle Rego");
+    if (!code21Type) missing.push("Offence Type");
+    if (!selectedAddress) missing.push("Offence Location");
+    return missing;
+  }, [savedWithPin, vehicleMake, vehicleModel, vehicleColour, vehicleRego, code21Type, selectedAddress]);
+
   const formattedDocument = useMemo(() => {
     const fields = [
       `Officer Number: ${officerNumber || "N/A"}`,
@@ -568,6 +604,7 @@ export default function PatrolMapScreen() {
       `Address: ${selectedAddress?.label ?? "N/A"}`,
       `Dispatch Notes: ${dispatchNotes || "N/A"}`,
       `Vehicle Make: ${vehicleMake || "N/A"}`,
+      `Vehicle Model: ${vehicleModel || "N/A"}`,
       `Vehicle Colour: ${vehicleColour || "N/A"}`,
       `Vehicle Rego: ${vehicleRego || "N/A"}`,
       `Attendance Notes: ${attendanceNotes || "N/A"}`,
@@ -575,7 +612,7 @@ export default function PatrolMapScreen() {
     ];
 
     return fields.join("\n");
-  }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Type, dispatchNotes, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress?.label, serviceRequestNumber, vehicleColour, vehicleMake, vehicleModel, vehicleRego]);
 
   const modalContentWidth = useMemo(
     () => Math.min(windowDimensions.width - 40, 420),
@@ -770,11 +807,13 @@ export default function PatrolMapScreen() {
       attendanceNotes,
       pin: pinIssued ? pinValue : "",
       vehicleMake,
+      vehicleModel,
       vehicleColour,
       vehicleRego: vehicleRego.toUpperCase(),
       travelMode,
       description,
       formattedDocument,
+      officerNotes: JSON.stringify(officerNotes),
     };
 
     const resetForm = () => {
@@ -787,22 +826,31 @@ export default function PatrolMapScreen() {
       setPinIssued(false);
       setServiceRequestNumber("");
       setVehicleMake("");
+      setVehicleModel("");
       setVehicleColour("");
       setVehicleRego("");
       setVehicleMakeQuery("");
+      setVehicleModelQuery("");
       setVehicleColourQuery("");
       setOffenceTypeQuery("");
       setAddressQuery("");
       setAddressDropdownVisible(false);
       setCode21Type("");
       setSelectedAddress(null);
+      setOfficerNotes([]);
+      setOfficerNoteText("");
     };
 
     if (editingRequestId !== null) {
-      // Editing an existing request — update the local entry in place, no new server record
       const existing = code21Requests.find((r) => r.id === editingRequestId);
+      const existingOffenceTime = existing?.offenceTime || "";
+      const autoOffenceTime = (pinIssued && pinValue.trim() && !existingOffenceTime)
+        ? new Date().toISOString()
+        : existingOffenceTime;
+
       const updatedEntry: Code21Request = {
         ...payload,
+        offenceTime: autoOffenceTime || offenceTime,
         id: editingRequestId,
         status: existing?.status ?? "in_progress",
         createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -810,6 +858,20 @@ export default function PatrolMapScreen() {
       setCode21Requests((prev) =>
         prev.map((r) => (r.id === editingRequestId ? updatedEntry : r))
       );
+
+      if (!editingRequestId.startsWith("local-")) {
+        try {
+          await fetch(`${API_BASE_URL}/api/code21/${editingRequestId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify({
+              ...payload,
+              offenceTime: autoOffenceTime || offenceTime,
+            }),
+          });
+        } catch { /* sync failure is non-blocking */ }
+      }
+
       resetForm();
       return;
     }
@@ -844,7 +906,7 @@ export default function PatrolMapScreen() {
     } catch {
       // Local entry remains on map for the session; will sync on next load if server recovers
     }
-  }, [attendanceNotes, code21Requests, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, token, travelMode, vehicleColour, vehicleMake, vehicleRego]);
+  }, [attendanceNotes, code21Requests, code21Type, description, dispatchNotes, editingRequestId, formattedDocument, isoRequestTime, offenceDate, offenceTime, officerNotes, officerNumber, pinIssued, pinValue, selectedAddress, serviceRequestNumber, token, travelMode, vehicleColour, vehicleMake, vehicleModel, vehicleRego]);
 
   const openCode21Modal = useCallback((initialTab: 0 | 1 = 0) => {
     setEditingRequestId(null);
@@ -859,6 +921,10 @@ export default function PatrolMapScreen() {
     setAddressDropdownVisible(false);
     setCode21Type("");
     setSelectedAddress(null);
+    setVehicleModel("");
+    setVehicleModelQuery("");
+    setOfficerNotes([]);
+    setOfficerNoteText("");
     setCode21ModalVisible(true);
   }, []);
 
@@ -1128,34 +1194,6 @@ export default function PatrolMapScreen() {
           </View>
         </View>
 
-        <View style={styles.zoneStatusRow}>
-          <View style={styles.zoneChip}>
-            <Text style={styles.zoneChipLabel}>ASSIGNED</Text>
-            <Text
-              style={[
-                styles.zoneChipValue,
-                { color: assignedZone?.color ?? Colors.dark.textMuted },
-              ]}
-              numberOfLines={1}
-            >
-              {assignedZone?.name ?? "Not Set"}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={14} color={Colors.dark.textMuted} />
-          <View style={styles.zoneChip}>
-            <Text style={styles.zoneChipLabel}>CURRENT</Text>
-            <Text
-              style={[
-                styles.zoneChipValue,
-                { color: currentZone?.color ?? Colors.dark.textMuted },
-              ]}
-              numberOfLines={1}
-            >
-              {currentZone?.name ?? "Outside Zones"}
-            </Text>
-          </View>
-        </View>
-
         {isOutsideAssigned && (
           <View style={styles.alertBanner}>
             <Ionicons name="warning" size={13} color={Colors.dark.warning} />
@@ -1312,28 +1350,34 @@ export default function PatrolMapScreen() {
                 color={Colors.dark.tint}
               />
             </TouchableOpacity>
+          </View>
+        </View>
 
-            {assignedZone && (
-              <View
-                style={[styles.assignedBadge, { borderColor: assignedZone.color }]}
-              >
-                <View
-                  style={[
-                    styles.assignedBadgeDot,
-                    { backgroundColor: assignedZone.color },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.assignedBadgeText,
-                    { color: assignedZone.color },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {assignedZone.name}
-                </Text>
-              </View>
-            )}
+        <View style={styles.panelZoneStatusRow}>
+          <View style={styles.zoneChip}>
+            <Text style={styles.zoneChipLabel}>ASSIGNED</Text>
+            <Text
+              style={[
+                styles.zoneChipValue,
+                { color: assignedZone?.color ?? Colors.dark.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {assignedZone?.name ?? "Not Set"}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={Colors.dark.textMuted} />
+          <View style={styles.zoneChip}>
+            <Text style={styles.zoneChipLabel}>CURRENT</Text>
+            <Text
+              style={[
+                styles.zoneChipValue,
+                { color: currentZone?.color ?? Colors.dark.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {currentZone?.name ?? "Outside Zones"}
+            </Text>
           </View>
         </View>
 
@@ -1474,25 +1518,26 @@ export default function PatrolMapScreen() {
                 >
                   {/* Row 1: Officer # (read-only from auth) | Service request # */}
                   <View style={styles.rowInputs}>
-                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, styles.readOnlyInput]} placeholder="Officer #" placeholderTextColor={Colors.dark.textMuted} />
-                    <TextInput value={serviceRequestNumber} onChangeText={savedWithPin ? undefined : setServiceRequestNumber} editable={!savedWithPin} style={[styles.modalInput, styles.rowInput, savedWithPin && styles.readOnlyInput]} placeholder="Service request #" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, styles.readOnlyInput]} placeholder="Officer #" placeholderTextColor="#BBBBBB" />
+                    <TextInput value={serviceRequestNumber} onChangeText={isFormReadOnly ? undefined : setServiceRequestNumber} editable={!isFormReadOnly} style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Service request #" placeholderTextColor="#BBBBBB" />
                   </View>
 
                   {/* Row 2: Date | Time */}
                   <View style={styles.rowInputs}>
-                    <TextInput value={offenceDate} onChangeText={setOffenceDate} style={[styles.modalInput, styles.rowInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor={Colors.dark.textMuted} />
-                    <TextInput value={offenceTime} onChangeText={setOffenceTime} style={[styles.modalInput, styles.rowInput]} placeholder="Time (HH:mm)" placeholderTextColor={Colors.dark.textMuted} />
+                    <TextInput value={offenceDate} onChangeText={isFormReadOnly ? undefined : setOffenceDate} editable={!isFormReadOnly} style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor="#BBBBBB" />
+                    <TextInput value={offenceTime} onChangeText={isFormReadOnly ? undefined : setOffenceTime} editable={!isFormReadOnly} style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Time (HH:mm)" placeholderTextColor="#BBBBBB" />
                   </View>
 
                   {/* Row 3: Address search */}
                   <View>
                     <TextInput
                       value={addressQuery}
-                      onChangeText={(text) => { setAddressQuery(text); setAddressDropdownVisible(true); }}
-                      onFocus={() => setAddressDropdownVisible(true)}
+                      onChangeText={isFormReadOnly ? undefined : (text) => { setAddressQuery(text); setAddressDropdownVisible(true); }}
+                      onFocus={isFormReadOnly ? undefined : () => setAddressDropdownVisible(true)}
+                      editable={!isFormReadOnly}
                       placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
-                      placeholderTextColor={selectedAddress ? Colors.dark.tint : Colors.dark.textMuted}
-                      style={styles.modalInput}
+                      placeholderTextColor={selectedAddress ? Colors.dark.tint : "#BBBBBB"}
+                      style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
                     />
                     {addressDropdownVisible && addressSuggestionsComputed.length > 0 && (
                       <View style={styles.acDropdown}>
@@ -1527,10 +1572,11 @@ export default function PatrolMapScreen() {
                   <View>
                     <TextInput
                       value={offenceTypeQuery}
-                      onChangeText={setOffenceTypeQuery}
+                      onChangeText={isFormReadOnly ? undefined : setOffenceTypeQuery}
+                      editable={!isFormReadOnly}
                       placeholder={code21Type || "Select offence"}
-                      placeholderTextColor={code21Type ? Colors.dark.tint : Colors.dark.textMuted}
-                      style={styles.modalInput}
+                      placeholderTextColor={code21Type ? Colors.dark.tint : "#BBBBBB"}
+                      style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
                     />
                     {filteredOffenceTypes.length > 0 && (
                       <View style={styles.acDropdown}>
@@ -1548,18 +1594,19 @@ export default function PatrolMapScreen() {
                   </View>
 
                   {/* Dispatch notes */}
-                  <TextInput value={dispatchNotes} onChangeText={setDispatchNotes} style={styles.modalInput} placeholder="Dispatch notes" placeholderTextColor={Colors.dark.textMuted} />
+                  <TextInput value={dispatchNotes} onChangeText={isFormReadOnly ? undefined : setDispatchNotes} editable={!isFormReadOnly} style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Dispatch notes" placeholderTextColor="#BBBBBB" />
 
                   {/* Vehicle make */}
                   <View>
                     <TextInput
                       value={vehicleMakeQuery}
-                      onChangeText={(text) => { setVehicleMakeQuery(text); setVehicleMake(text); }}
-                      style={styles.modalInput}
+                      onChangeText={isFormReadOnly ? undefined : (text) => { setVehicleMakeQuery(text); setVehicleMake(text); }}
+                      editable={!isFormReadOnly}
+                      style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
                       placeholder={vehicleMake || "Vehicle make"}
-                      placeholderTextColor={vehicleMake ? Colors.dark.tint : Colors.dark.textMuted}
+                      placeholderTextColor={vehicleMake ? Colors.dark.tint : "#BBBBBB"}
                     />
-                    {vehicleMakeQuery.length > 0 && filteredVehicleMakes.length > 0 && (
+                    {!isFormReadOnly && vehicleMakeQuery.length > 0 && filteredVehicleMakes.length > 0 && (
                       <View style={styles.acDropdown}>
                         {filteredVehicleMakes.map((make) => (
                           <TouchableOpacity
@@ -1574,25 +1621,52 @@ export default function PatrolMapScreen() {
                     )}
                   </View>
 
+                  {/* Vehicle model */}
+                  <View>
+                    <TextInput
+                      value={vehicleModelQuery}
+                      onChangeText={isFormReadOnly ? undefined : (text) => { setVehicleModelQuery(text); setVehicleModel(text); }}
+                      editable={!isFormReadOnly}
+                      style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
+                      placeholder={vehicleModel || "Vehicle model"}
+                      placeholderTextColor={vehicleModel ? Colors.dark.tint : "#BBBBBB"}
+                    />
+                    {!isFormReadOnly && vehicleModelQuery.length > 0 && filteredVehicleModels.length > 0 && (
+                      <View style={styles.acDropdown}>
+                        {filteredVehicleModels.map((model) => (
+                          <TouchableOpacity
+                            key={model}
+                            style={styles.acItem}
+                            onPress={() => { setVehicleModel(model); setVehicleModelQuery(""); }}
+                          >
+                            <Text style={styles.acItemText}>{model}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
                   {/* Vehicle rego | Vehicle colour */}
                   <View style={styles.rowInputs}>
                     <TextInput
                       value={vehicleRego}
-                      onChangeText={setVehicleRego}
+                      onChangeText={isFormReadOnly ? undefined : setVehicleRego}
+                      editable={!isFormReadOnly}
                       autoCapitalize="characters"
-                      style={[styles.modalInput, styles.rowInput]}
+                      style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]}
                       placeholder="Rego"
-                      placeholderTextColor={Colors.dark.textMuted}
+                      placeholderTextColor="#BBBBBB"
                     />
                     <View style={styles.rowInput}>
                       <TextInput
                         value={vehicleColourQuery}
-                        onChangeText={(text) => { setVehicleColourQuery(text); setVehicleColour(text); }}
-                        style={styles.modalInput}
+                        onChangeText={isFormReadOnly ? undefined : (text) => { setVehicleColourQuery(text); setVehicleColour(text); }}
+                        editable={!isFormReadOnly}
+                        style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
                         placeholder={vehicleColour || "Colour"}
-                        placeholderTextColor={vehicleColour ? Colors.dark.tint : Colors.dark.textMuted}
+                        placeholderTextColor={vehicleColour ? Colors.dark.tint : "#BBBBBB"}
                       />
-                      {vehicleColourQuery.length > 0 && filteredVehicleColours.length > 0 && (
+                      {!isFormReadOnly && vehicleColourQuery.length > 0 && filteredVehicleColours.length > 0 && (
                         <View style={styles.acDropdown}>
                           {filteredVehicleColours.map((colour) => (
                             <TouchableOpacity
@@ -1609,25 +1683,83 @@ export default function PatrolMapScreen() {
                   </View>
 
                   {/* Attendance notes */}
-                  <TextInput value={attendanceNotes} onChangeText={setAttendanceNotes} style={styles.modalInput} placeholder="Attendance notes" placeholderTextColor={Colors.dark.textMuted} />
+                  <TextInput value={attendanceNotes} onChangeText={isFormReadOnly ? undefined : setAttendanceNotes} editable={!isFormReadOnly} style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Attendance notes" placeholderTextColor="#BBBBBB" />
 
                   {/* PIN toggle */}
                   <TouchableOpacity
-                    style={[styles.pinToggle, pinIssued && styles.pinToggleActive, savedWithPin && styles.pinToggleDisabled]}
-                    onPress={savedWithPin ? undefined : () => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
-                    activeOpacity={savedWithPin ? 1 : 0.8}
-                    disabled={savedWithPin}
+                    style={[styles.pinToggle, pinIssued && styles.pinToggleActive, isFormReadOnly && styles.pinToggleDisabled]}
+                    onPress={isFormReadOnly ? undefined : () => { const next = !pinIssued; setPinIssued(next); if (!next) setPinValue(""); }}
+                    activeOpacity={isFormReadOnly ? 1 : 0.8}
+                    disabled={isFormReadOnly}
                   >
                     <Ionicons
                       name={pinIssued ? "checkmark-circle" : "ellipse-outline"}
                       size={16}
                       color={pinIssued ? Colors.dark.tint : Colors.dark.textMuted}
                     />
-                    <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued{savedWithPin ? " (locked)" : ""}</Text>
+                    <Text style={[styles.pinToggleText, pinIssued && styles.pinToggleTextActive]}>PIN issued{isFormReadOnly ? " (locked)" : ""}</Text>
                   </TouchableOpacity>
                   {pinIssued && (
-                    <TextInput value={pinValue} onChangeText={savedWithPin ? undefined : setPinValue} editable={!savedWithPin} style={[styles.modalInput, savedWithPin && styles.readOnlyInput]} placeholder="PIN #" placeholderTextColor={Colors.dark.textMuted} keyboardType="number-pad" />
+                    <TextInput value={pinValue} onChangeText={isFormReadOnly ? undefined : setPinValue} editable={!isFormReadOnly} style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]} placeholder="PIN #" placeholderTextColor="#BBBBBB" keyboardType="number-pad" />
                   )}
+
+                  {/* Missing fields validation warning */}
+                  {savedWithPin && missingRequiredFields.length > 0 && (
+                    <View style={styles.validationWarning}>
+                      <Ionicons name="warning" size={14} color={Colors.dark.warning} />
+                      <Text style={styles.validationWarningText}>
+                        Required before lock: {missingRequiredFields.join(", ")}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Officer notes (available even after read-only) */}
+                  <Text style={styles.modalFieldLabel}>Officer Notes</Text>
+                  {officerNotes.length > 0 && (
+                    <View style={styles.officerNotesList}>
+                      {officerNotes.map((n, i) => (
+                        <View key={i} style={styles.officerNoteEntry}>
+                          <Text style={styles.officerNoteTimestamp}>
+                            {new Date(n.timestamp).toLocaleString()}
+                          </Text>
+                          <Text style={styles.officerNoteText}>{n.note}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <View style={styles.officerNoteInputRow}>
+                    <TextInput
+                      value={officerNoteText}
+                      onChangeText={setOfficerNoteText}
+                      style={[styles.modalInput, { flex: 1 }]}
+                      placeholder="Add officer note..."
+                      placeholderTextColor="#BBBBBB"
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.officerNoteAddBtn, !officerNoteText.trim() && { opacity: 0.4 }]}
+                      disabled={!officerNoteText.trim()}
+                      onPress={() => {
+                        if (!officerNoteText.trim()) return;
+                        const newNote: OfficerNote = {
+                          note: officerNoteText.trim(),
+                          timestamp: new Date().toISOString(),
+                        };
+                        setOfficerNotes((prev) => [...prev, newNote]);
+                        setOfficerNoteText("");
+                        if (editingRequestId && !editingRequestId.startsWith("local-")) {
+                          fetch(`${API_BASE_URL}/api/code21/${editingRequestId}/notes`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                            body: JSON.stringify({ note: newNote.note }),
+                          }).catch(() => {});
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add-circle" size={28} color={Colors.dark.tint} />
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Document preview */}
                   <View style={styles.documentPreview}>
@@ -1637,8 +1769,8 @@ export default function PatrolMapScreen() {
 
                   {/* Travel mode */}
                   <View style={styles.travelRow}>
-                    <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={() => setTravelMode("foot")}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={() => setTravelMode("vehicle")}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.travelBtn, travelMode === "foot" && styles.travelBtnActive]} onPress={isFormReadOnly ? undefined : () => setTravelMode("foot")} disabled={isFormReadOnly}><Text style={styles.travelBtnText}>On foot</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.travelBtn, travelMode === "vehicle" && styles.travelBtnActive]} onPress={isFormReadOnly ? undefined : () => setTravelMode("vehicle")} disabled={isFormReadOnly}><Text style={styles.travelBtnText}>In vehicle</Text></TouchableOpacity>
                   </View>
                 </ScrollView>
 
@@ -1674,43 +1806,46 @@ export default function PatrolMapScreen() {
                             <Text style={[styles.inProgressMeta, isDone && styles.inProgressTextDone]}>{req.offenceDate}{"  "}{req.offenceTime}</Text>
                           </View>
                           <View style={styles.inProgressActions}>
-                            {!isDone && (
-                              <TouchableOpacity
-                                style={styles.inProgressEditBtn}
-                                activeOpacity={0.7}
-                                onPress={() => {
-                                  const addr = { label: req.addressLabel, latitude: req.latitude, longitude: req.longitude };
-                                  setSelectedAddress(addr);
-                                  setLastSelectedAddress(addr);
-                                  setAddressQuery(req.addressLabel);
-                                  setAddressDropdownVisible(false);
-                                  setServiceRequestNumber(req.serviceRequestNumber || "");
-                                  setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
-                                  setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
-                                  setCode21Type(req.offenceType || req.code21Type);
-                                  setDispatchNotes(req.dispatchNotes);
-                                  setAttendanceNotes(req.attendanceNotes);
-                                  setPinValue(req.pin);
-                                  setPinIssued(!!req.pin);
-                                  setSavedWithPin(!!req.pin);
-                                  setVehicleMake(req.vehicleMake || "");
-                                  setVehicleColour(req.vehicleColour || "");
-                                  setVehicleRego(req.vehicleRego || "");
-                                  setVehicleMakeQuery(req.vehicleMake || "");
-                                  setVehicleColourQuery(req.vehicleColour || "");
-                                  setOffenceTypeQuery("");
-                                  setDescription(req.description);
-                                  setTravelMode(req.travelMode);
-                                  setEditingRequestId(req.id);
-                                  scrollToTab(0);
-                                }}
-                              >
-                                <Ionicons name="create-outline" size={19} color={Colors.dark.textSecondary} />
-                              </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                              style={styles.inProgressEditBtn}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                const addr = { label: req.addressLabel, latitude: req.latitude, longitude: req.longitude };
+                                setSelectedAddress(addr);
+                                setLastSelectedAddress(addr);
+                                setAddressQuery(req.addressLabel);
+                                setAddressDropdownVisible(false);
+                                setServiceRequestNumber(req.serviceRequestNumber || "");
+                                setOffenceDate(req.offenceDate || req.requestTime.slice(0, 10));
+                                setOffenceTime(req.offenceTime || req.requestTime.slice(11, 16));
+                                setCode21Type(req.offenceType || req.code21Type);
+                                setDispatchNotes(req.dispatchNotes);
+                                setAttendanceNotes(req.attendanceNotes);
+                                setPinValue(req.pin);
+                                setPinIssued(!!req.pin);
+                                setSavedWithPin(!!req.pin);
+                                setVehicleMake(req.vehicleMake || "");
+                                setVehicleModel(req.vehicleModel || "");
+                                setVehicleColour(req.vehicleColour || "");
+                                setVehicleRego(req.vehicleRego || "");
+                                setVehicleMakeQuery(req.vehicleMake || "");
+                                setVehicleModelQuery(req.vehicleModel || "");
+                                setVehicleColourQuery(req.vehicleColour || "");
+                                setOffenceTypeQuery("");
+                                try {
+                                  setOfficerNotes(JSON.parse(req.officerNotes || "[]"));
+                                } catch { setOfficerNotes([]); }
+                                setDescription(req.description);
+                                setTravelMode(req.travelMode);
+                                setEditingRequestId(req.id);
+                                scrollToTab(0);
+                              }}
+                            >
+                              <Ionicons name={isDone ? "eye-outline" : "create-outline"} size={19} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
                             {isDone ? (
                               <View style={styles.inProgressCompleteBtn}>
-                                <Ionicons name="checkmark-circle" size={22} color={Colors.dark.textMuted} />
+                                <Ionicons name="checkmark-circle" size={22} color="#00ff00" />
                               </View>
                             ) : (
                               <TouchableOpacity
@@ -2541,7 +2676,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    color: Colors.dark.text,
+    color: '#FFFF00',
     fontSize: 12,
     backgroundColor: Colors.dark.surfaceAlt,
   },
@@ -2624,6 +2759,64 @@ const styles = StyleSheet.create({
   readOnlyInput: {
     opacity: 0.5,
     backgroundColor: Colors.dark.surface,
+  },
+  validationWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  validationWarningText: {
+    fontFamily: 'RobotoMono_400Regular',
+    color: Colors.dark.warning,
+    fontSize: 11,
+    flex: 1,
+  },
+  officerNotesList: {
+    gap: 6,
+  },
+  officerNoteEntry: {
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  officerNoteTimestamp: {
+    fontFamily: 'RobotoMono_400Regular',
+    color: Colors.dark.textMuted,
+    fontSize: 9,
+    letterSpacing: 0.3,
+  },
+  officerNoteText: {
+    fontFamily: 'RobotoMono_400Regular',
+    color: Colors.dark.text,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  officerNoteInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  officerNoteAddBtn: {
+    padding: 4,
+  },
+  panelZoneStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
   },
   acDropdown: {
     borderWidth: 1,
@@ -2722,7 +2915,7 @@ const styles = StyleSheet.create({
   inProgressBar: {
     width: 4,
     alignSelf: "stretch",
-    backgroundColor: Colors.dark.warning,
+    backgroundColor: '#00E5FF',
   },
   inProgressInfo: {
     flex: 1,
@@ -2732,19 +2925,19 @@ const styles = StyleSheet.create({
   },
   inProgressAddress: {
     fontFamily: "RobotoMono_700Bold",
-    color: Colors.dark.text,
+    color: '#00E5FF',
     fontSize: 12,
     letterSpacing: 0.3,
   },
   inProgressType: {
     fontFamily: "RobotoMono_400Regular",
-    color: Colors.dark.textSecondary,
+    color: '#00E5FF',
     fontSize: 10,
     letterSpacing: 0.2,
   },
   inProgressMeta: {
     fontFamily: "RobotoMono_400Regular",
-    color: Colors.dark.textMuted,
+    color: '#00BCD4',
     fontSize: 10,
   },
   inProgressActions: {
@@ -2781,14 +2974,15 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   inProgressItemDone: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   inProgressBarDone: {
-    backgroundColor: Colors.dark.textMuted,
+    backgroundColor: '#00ff00',
   },
   inProgressTextDone: {
     textDecorationLine: "line-through",
-    color: Colors.dark.textMuted,
+    textDecorationColor: '#00ff00',
+    color: '#00E5FF80',
   },
   archiveSearchRow: {
     flexDirection: "row",
