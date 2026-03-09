@@ -55,7 +55,7 @@ import {
   type OfficerNote,
 } from "@/constants/code21";
 
-const PANEL_MIN = 196;
+const PANEL_MIN = 240;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
@@ -1327,32 +1327,6 @@ export default function PatrolMapScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.compassRow}>
-          <Compass heading={heading} size={108} />
-
-          <View style={styles.headingInfo}>
-            <Text style={styles.headingDir}>{headingLabel.cardinal}</Text>
-            <Text style={styles.headingStreet}>{headingLabel.street}</Text>
-          </View>
-
-          <View style={styles.panelRight}>
-            <TouchableOpacity
-              style={styles.expandBtn}
-              onPress={togglePanel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.expandBtnLabel}>
-                {panelExpanded ? "CLOSE" : "ASSIGN"}
-              </Text>
-              <Ionicons
-                name={panelExpanded ? "chevron-down" : "chevron-up"}
-                size={14}
-                color={Colors.dark.tint}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={styles.panelZoneStatusRow}>
           <View style={styles.zoneChip}>
             <Text style={styles.zoneChipLabel}>ASSIGNED</Text>
@@ -1378,6 +1352,32 @@ export default function PatrolMapScreen() {
             >
               {currentZone?.name ?? "Outside Zones"}
             </Text>
+          </View>
+        </View>
+
+        <View style={styles.compassRow}>
+          <Compass heading={heading} size={108} />
+
+          <View style={styles.headingInfo}>
+            <Text style={styles.headingDir}>{headingLabel.cardinal}</Text>
+            <Text style={styles.headingStreet}>{headingLabel.street}</Text>
+          </View>
+
+          <View style={styles.panelRight}>
+            <TouchableOpacity
+              style={styles.expandBtn}
+              onPress={togglePanel}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.expandBtnLabel}>
+                {panelExpanded ? "CLOSE" : "ASSIGN"}
+              </Text>
+              <Ionicons
+                name={panelExpanded ? "chevron-down" : "chevron-up"}
+                size={14}
+                color={Colors.dark.tint}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1530,15 +1530,27 @@ export default function PatrolMapScreen() {
 
                   {/* Row 3: Address search */}
                   <View>
-                    <TextInput
-                      value={addressQuery}
-                      onChangeText={isFormReadOnly ? undefined : (text) => { setAddressQuery(text); setAddressDropdownVisible(true); }}
-                      onFocus={isFormReadOnly ? undefined : () => setAddressDropdownVisible(true)}
-                      editable={!isFormReadOnly}
-                      placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
-                      placeholderTextColor={selectedAddress ? Colors.dark.tint : "#BBBBBB"}
-                      style={[styles.modalInput, isFormReadOnly && styles.readOnlyInput]}
-                    />
+                    <View style={styles.addressInputRow}>
+                      <TextInput
+                        value={addressQuery}
+                        onChangeText={isFormReadOnly ? undefined : (text) => { setAddressQuery(text); setAddressDropdownVisible(true); }}
+                        onFocus={isFormReadOnly ? undefined : () => setAddressDropdownVisible(true)}
+                        editable={!isFormReadOnly}
+                        placeholder={selectedAddress ? selectedAddress.label : "Search address..."}
+                        placeholderTextColor={selectedAddress ? Colors.dark.tint : "#BBBBBB"}
+                        style={[styles.modalInput, { flex: 1 }, isFormReadOnly && styles.readOnlyInput]}
+                      />
+                      {addressDropdownVisible && !isFormReadOnly && (
+                        <TouchableOpacity
+                          onPress={() => setAddressDropdownVisible(false)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={styles.dropdownDismissBtn}
+                        >
+                          <Ionicons name="close-circle" size={18} color={Colors.dark.textMuted} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     {addressDropdownVisible && addressSuggestionsComputed.length > 0 && (
                       <View style={styles.acDropdown}>
                         {addressSuggestionsComputed.map((option) => (
@@ -2815,8 +2827,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: Colors.dark.border,
+  },
+  addressInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dropdownDismissBtn: {
+    padding: 4,
+    marginLeft: -4,
   },
   acDropdown: {
     borderWidth: 1,

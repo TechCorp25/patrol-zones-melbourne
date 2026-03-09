@@ -160,9 +160,10 @@ The Code 21 modal has three tabs navigated via horizontal swipe or tab bar tap:
 - `PUT /api/code21/:id` for form updates, `GET /api/code21/:id` for individual read access
 
 ### UI Layout
-- Assigned/Current zone display moved from header to bottom panel (below compass row)
-- Alert banner (in/out of assigned zone) remains in header, moved up to vacated space
-- Redundant assigned badge removed from bottom panel right section
+- Assigned/Current zone display moved from header to top of bottom panel (above compass row)
+- Alert banner (in/out of assigned zone) remains in header
+- Panel minimum height increased to 240px to accommodate zone status row + compass
+- Address search dropdown has a dismiss button (X icon) to close without forced selection
 
 ### Status Lifecycle
 - New requests default to `status: "in_progress"`
