@@ -1811,6 +1811,7 @@ export default function PatrolMapScreen() {
                         <View key={req.id} style={[styles.inProgressItem, isDone && styles.inProgressItemDone]}>
                           <View style={[styles.inProgressBar, isDone && styles.inProgressBarDone]} />
                           <View style={styles.inProgressInfo}>
+                            {req.serviceRequestNumber ? <Text style={[styles.inProgressSR, isDone && styles.inProgressTextDone]} numberOfLines={1}>SR# {req.serviceRequestNumber}</Text> : null}
                             <Text style={[styles.inProgressAddress, isDone && styles.inProgressTextDone]} numberOfLines={1}>{req.addressLabel}</Text>
                             <Text style={[styles.inProgressType, isDone && styles.inProgressTextDone]} numberOfLines={1}>{req.offenceType || req.code21Type}</Text>
                             <Text style={[styles.inProgressMeta, isDone && styles.inProgressTextDone]}>{req.offenceDate}{"  "}{req.offenceTime}</Text>
@@ -2228,17 +2229,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  zoneChip: { flex: 1, gap: 2 },
+  zoneChip: { flex: 1, gap: 2, alignItems: 'center' },
   zoneChipLabel: {
     fontFamily: "RobotoMono_400Regular",
     color: Colors.dark.textMuted,
     fontSize: 8,
     letterSpacing: 2,
+    textAlign: 'center',
   },
   zoneChipValue: {
     fontFamily: "RobotoMono_700Bold",
     fontSize: 14,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   alertBanner: {
     flexDirection: "row",
@@ -2822,6 +2825,7 @@ const styles = StyleSheet.create({
   panelZoneStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 6,
@@ -2939,6 +2943,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
     gap: 3,
+  },
+  inProgressSR: {
+    fontFamily: "RobotoMono_700Bold",
+    color: '#FFFFFF',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   inProgressAddress: {
     fontFamily: "RobotoMono_700Bold",
