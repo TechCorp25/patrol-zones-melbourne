@@ -55,7 +55,7 @@ import {
   type OfficerNote,
 } from "@/constants/code21";
 
-const PANEL_MIN = 240;
+const PANEL_MIN = 196;
 const SWIPE_UP_THRESHOLD = 40;
 const PULL_TAB_HEIGHT = 44;
 const ASSIGNED_ZONE_KEY = "patrol_assigned_zone";
@@ -1303,7 +1303,7 @@ export default function PatrolMapScreen() {
         style={[
           styles.panel,
           panelStyle,
-          { paddingBottom: panelMinimized ? 0 : safeBottom + 8 },
+          { paddingBottom: panelMinimized ? 0 : safeBottom },
         ]}
         pointerEvents={panelMinimized ? "none" : "auto"}
       >
