@@ -1,0 +1,585 @@
+# SPEC-001-Section Assignment Presence UI Update
+
+## Background
+
+The application needs a small but operationally important update to the section assignment experience.
+
+Current issues described:
+
+* The `assigned` and `current` labels in section information do not visually match the placeholder text styling used in the Code21 form.
+* The `show panel` text also does not match the placeholder text colour.
+* The assign-section list does not show which officer is currently assigned to a section while users are logged in.
+* Officers on patrol need immediate visibility of who is covering each section without opening extra screens.
+* The system currently lacks a reliable online/active marker tied to a logged-in assigned officer.
+
+This specification defines an MVP that improves UI consistency and adds a live assignment-presence feature so a logged-in user can see, for example, `Officer 626` right-aligned in the `Titles` section row when that officer is both assigned and online.
+
+Assumptions used for this design:
+
+* The application already has authenticated users, sections, and a section assignment workflow.
+* Each officer has a unique officer number stored against their user record.
+* The application already has a backend API and database that can support schema changes.
+* The application can support either websocket-based realtime updates or short-interval polling.
+* The Code21 form already exposes a placeholder text style or token that can be reused.
+
+## Requirements
+
+### Must have
+
+* Update text colour for `assigned` labels to match the Code21 form placeholder text colour.
+* Update text colour for `current` labels to match the Code21 form placeholder text colour.
+* Update `show panel` text colour to match the Code21 form placeholder text colour.
+* Display the assigned officer number in the assign-section list when the viewer is logged in and the section has an active assignment.
+* Render the officer number right-aligned within the section row.
+* Render the officer number in white text.
+* Introduce an online/active presence marker in the database for authenticated users.
+* Only show `Officer <number>` when the assigned officer is currently online/active.
+* Introduce an assignment marker so the system can determine whether a section is currently assigned.
+* Ensure section assignment and presence state are queryable together in a single efficient backend response.
+* Ensure stale sessions do not leave officers incorrectly displayed as online indefinitely.
+
+### Should have
+
+* Push assignment and presence changes to logged-in clients in near real time.
+* Display a small visual marker for section status:
+
+  * unassigned
+  * assigned but offline
+  * assigned and online
+* Keep the feature compatible with patrol workflows on smaller mobile screens.
+* Record timestamps for `assigned_at`, `last_seen_at`, and `offline_at` for troubleshooting.
+* Prevent multiple simultaneous active assignments for the same section unless explicitly allowed by product rules.
+
+### Could have
+
+* Tooltip or tap target to show assignment metadata such as assigned time.
+* Filter section list to show only online-assigned sections.
+* Audit log of assignment changes for supervisors.
+
+### Won't have in this MVP
+
+* Full dispatch-style workforce management.
+* Historical replay UI for past section assignments.
+* Multi-officer assignment display in a single section row.
+* Cross-agency presence federation.
+
+## Method
+
+### 1. UX and visual behaviour
+
+#### 1.1 Colour standardisation
+
+Use the same design token, CSS variable, or theme constant currently used for Code21 placeholder text.
+
+Apply that token to:
+
+* section info label: `assigned`
+* section info label: `current`
+* control text: `show panel`
+
+Recommended implementation:
+
+* Replace hard-coded colour values with a shared semantic token such as `--text-placeholder`.
+* Do not copy the raw hex value into multiple components.
+* Add a single source of truth in the theme layer.
+
+Example mapping:
+
+```text
+Code21 placeholder text -> theme.text.placeholder
+assigned label          -> theme.text.placeholder
+current label           -> theme.text.placeholder
+show panel text         -> theme.text.placeholder
+```
+
+#### 1.2 Section row display
+
+For each section row in the assign-section list:
+
+* Left side: section name, e.g. `Titles`
+* Right side: assigned officer badge text, e.g. `Officer 626`
+* Officer text colour: white
+* Alignment: right aligned within the row
+* Visibility rule:
+
+  * visible only if section has an active assignment and assigned officer is online
+  * hidden if no active assignment
+  * hidden if assignment exists but officer is offline
+
+#### 1.3 Section status marker
+
+Each row should expose one machine-readable and UI-readable state:
+
+* `UNASSIGNED`
+* `ASSIGNED_OFFLINE`
+* `ASSIGNED_ONLINE`
+
+Recommended visual marker:
+
+* `UNASSIGNED`: no marker or neutral marker
+* `ASSIGNED_OFFLINE`: subdued marker
+* `ASSIGNED_ONLINE`: active marker
+
+This avoids overloading the officer text itself with status meaning.
+
+### 2. Data model
+
+A reliable implementation needs assignment state and user presence state separated but joinable.
+
+#### 2.1 Core entities
+
+* `users`
+* `sections`
+* `section_assignments`
+* `user_presence`
+
+#### 2.2 Proposed schema
+
+```sql
+-- existing or assumed
+create table users (
+  id uuid primary key,
+  officer_number varchar(20) not null unique,
+  display_name varchar(120),
+  role varchar(50) not null,
+  created_at timestamptz not null default now()
+);
+
+create table sections (
+  id uuid primary key,
+  code varchar(50) not null unique,
+  name varchar(120) not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table section_assignments (
+  id uuid primary key,
+  section_id uuid not null references sections(id),
+  officer_user_id uuid not null references users(id),
+  status varchar(20) not null check (status in ('ACTIVE', 'ENDED')),
+  assigned_at timestamptz not null default now(),
+  ended_at timestamptz null,
+  assigned_by_user_id uuid null references users(id),
+  ended_by_user_id uuid null references users(id),
+  created_at timestamptz not null default now()
+);
+
+create unique index uq_section_active_assignment
+  on section_assignments(section_id)
+  where status = 'ACTIVE';
+
+create table user_presence (
+  user_id uuid primary key references users(id),
+  is_online boolean not null default false,
+  session_id uuid null,
+  connected_at timestamptz null,
+  last_seen_at timestamptz null,
+  offline_at timestamptz null,
+  client_type varchar(30) null,
+  updated_at timestamptz not null default now()
+);
+
+create index idx_presence_online on user_presence(is_online);
+create index idx_assignment_officer_active on section_assignments(officer_user_id, status);
+```
+
+#### 2.3 Optional read model for simpler UI queries
+
+```sql
+create view v_section_assignment_presence as
+select
+  s.id as section_id,
+  s.code as section_code,
+  s.name as section_name,
+  sa.id as assignment_id,
+  sa.status as assignment_status,
+  sa.assigned_at,
+  u.id as officer_user_id,
+  u.officer_number,
+  coalesce(up.is_online, false) as officer_is_online,
+  case
+    when sa.id is null then 'UNASSIGNED'
+    when sa.id is not null and coalesce(up.is_online, false) = true then 'ASSIGNED_ONLINE'
+    else 'ASSIGNED_OFFLINE'
+  end as section_display_status
+from sections s
+left join section_assignments sa
+  on sa.section_id = s.id
+ and sa.status = 'ACTIVE'
+left join users u
+  on u.id = sa.officer_user_id
+left join user_presence up
+  on up.user_id = u.id;
+```
+
+This view lets the UI fetch one dataset without composing logic client-side.
+
+### 3. Presence model
+
+#### 3.1 Presence rules
+
+A user is considered `online` when:
+
+* authenticated session is valid
+* client has established app presence
+* heartbeat has been received within the timeout window
+
+Recommended thresholds:
+
+* client heartbeat every 30 seconds
+* server online timeout after 90 seconds without heartbeat
+* mark offline on explicit logout immediately
+
+#### 3.2 Presence lifecycle
+
+```plantuml
+@startuml
+actor OfficerClient
+participant API
+database DB
+
+OfficerClient -> API: Login / resume session
+API -> DB: upsert user_presence(is_online=true,
+connected_at=now,
+last_seen_at=now,
+session_id=<session>)
+
+loop every 30 seconds
+  OfficerClient -> API: Presence heartbeat
+  API -> DB: update user_presence(last_seen_at=now, is_online=true)
+end
+
+OfficerClient -> API: Logout / app close
+API -> DB: update user_presence(is_online=false, offline_at=now)
+
+... timeout path ...
+API -> DB: background presence sweeper
+DB --> API: rows with last_seen_at < now - 90s
+API -> DB: update rows set is_online=false, offline_at=now
+@enduml
+```
+
+#### 3.3 Why presence is stored separately
+
+* A user may be online without being assigned.
+* A section may be assigned while the officer is offline.
+* Presence expires faster than assignment changes.
+* Separation prevents assignment history from being overwritten by session noise.
+
+### 4. Assignment model
+
+#### 4.1 Assignment rules
+
+* Each section can have at most one active assignment in the MVP.
+* Reassigning a section must end the previous active assignment before creating a new one.
+* Assignment status is authoritative in `section_assignments`.
+* UI display status is derived from both assignment and presence.
+
+#### 4.2 Assignment workflow
+
+```plantuml
+@startuml
+actor Supervisor
+participant API
+database DB
+
+Supervisor -> API: Assign officer 626 to section Titles
+API -> DB: end current ACTIVE assignment for Titles (if any)
+API -> DB: insert ACTIVE assignment for officer 626
+API -> DB: query officer presence
+API --> Supervisor: section status = ASSIGNED_ONLINE or ASSIGNED_OFFLINE
+@enduml
+```
+
+#### 4.3 Derived UI logic
+
+```text
+if no active assignment:
+  status = UNASSIGNED
+  officer_label = null
+
+if active assignment and officer offline:
+  status = ASSIGNED_OFFLINE
+  officer_label = null
+
+if active assignment and officer online:
+  status = ASSIGNED_ONLINE
+  officer_label = "Officer <officer_number>"
+```
+
+This satisfies the requirement that the officer number only appears when the officer is online and assigned.
+
+### 5. API contract
+
+The exact transport can be REST, GraphQL, or existing service methods. REST example below.
+
+#### 5.1 Presence endpoints
+
+```http
+POST /api/presence/connect
+POST /api/presence/heartbeat
+POST /api/presence/disconnect
+```
+
+Example payloads:
+
+```json
+{
+  "sessionId": "uuid",
+  "clientType": "web"
+}
+```
+
+#### 5.2 Assignment endpoints
+
+```http
+POST /api/sections/{sectionId}/assign
+POST /api/sections/{sectionId}/unassign
+GET /api/sections/assignment-board
+```
+
+`GET /api/sections/assignment-board` response example:
+
+```json
+[
+  {
+    "sectionId": "sec-1",
+    "sectionName": "Titles",
+    "displayStatus": "ASSIGNED_ONLINE",
+    "assignedOfficerNumber": "626",
+    "assignedAt": "2026-03-09T10:15:00Z"
+  },
+  {
+    "sectionId": "sec-2",
+    "sectionName": "Intel",
+    "displayStatus": "UNASSIGNED",
+    "assignedOfficerNumber": null,
+    "assignedAt": null
+  }
+]
+```
+
+### 6. Frontend implementation
+
+#### 6.1 UI component changes
+
+Update the section row component to support:
+
+* `labelColorToken`
+* `displayStatus`
+* `assignedOfficerNumber`
+* right-aligned officer label region
+
+Suggested rendering contract:
+
+```ts
+interface SectionBoardRowVM {
+  sectionId: string;
+  sectionName: string;
+  displayStatus: 'UNASSIGNED' | 'ASSIGNED_OFFLINE' | 'ASSIGNED_ONLINE';
+  assignedOfficerNumber: string | null;
+}
+```
+
+#### 6.2 Rendering example
+
+```text
+[Titles........................................Officer 626]
+```
+
+Where:
+
+* `Titles` is left aligned
+* `Officer 626` is right aligned
+* officer text is white
+* row still supports truncation and responsive layout
+
+#### 6.3 Responsive rules
+
+* Preserve minimum tappable row height.
+* Truncate section names before officer number.
+* Never wrap `Officer 626` to a second line in MVP.
+* On narrow screens, give officer label display priority over secondary metadata.
+
+### 7. Realtime update strategy
+
+Preferred order:
+
+1. Reuse the application's existing realtime channel if present.
+2. If no realtime channel exists, use websocket events.
+3. If websocket support is not available, poll `GET /api/sections/assignment-board` every 15 seconds.
+
+Recommended emitted events:
+
+* `presence.updated`
+* `section.assignment.updated`
+
+#### 7.1 Event payload example
+
+```json
+{
+  "sectionId": "sec-1",
+  "displayStatus": "ASSIGNED_ONLINE",
+  "assignedOfficerNumber": "626"
+}
+```
+
+### 8. Access control
+
+* Only authenticated users may request the assignment board.
+* Only authorized roles may create or end assignments.
+* Presence updates may only update the current authenticated user's presence record.
+* Officer numbers must not be editable through client payloads during presence updates.
+
+### 9. Error handling and edge cases
+
+* If two supervisors assign the same section concurrently, the unique active-assignment index prevents duplicates.
+* If an officer loses connectivity, display should degrade to offline after timeout.
+* If presence record is missing, treat as offline.
+* If user logs in from multiple devices, MVP should treat online as `true` if any active session remains. This can be implemented later with a session table if needed.
+* If assignment exists for a deleted or inactive user, suppress officer label and flag for admin review.
+
+### 10. Similar application patterns informing this design
+
+This design follows proven patterns from dispatch boards, workforce rosters, and team collaboration tools:
+
+* presence is tracked separately from work assignment
+* list rows show live occupancy/ownership without opening detail screens
+* online indicators are short-lived and heartbeat-driven
+* assignment display is derived from authoritative backend state, not client guesswork
+
+For this MVP, that means avoiding complex scheduling logic and focusing on one reliable row-state model that patrol officers can trust at a glance.
+
+### 11. Architecture overview
+
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+
+actor User
+component "Web/Mobile Client" as Client
+component "Auth Layer" as Auth
+component "Assignment API" as API
+component "Presence Service" as Presence
+component "Realtime Gateway\n(optional)" as Realtime
+database "App DB" as DB
+
+User --> Client
+Client --> Auth
+Client --> API : fetch assignment board
+Client --> Presence : connect/heartbeat/disconnect
+Presence --> DB : update user_presence
+API --> DB : read/write section_assignments
+API --> DB : read users/sections/presence
+API --> Realtime : publish assignment changes
+Presence --> Realtime : publish presence changes
+Realtime --> Client : row updates
+@enduml
+```
+
+## Implementation
+
+### Phase 1: UI token alignment
+
+1. Locate the Code21 placeholder text token or CSS variable.
+2. Replace hard-coded colours for `assigned`, `current`, and `show panel` with the shared token.
+3. Add visual regression coverage for these text elements.
+
+### Phase 2: Database changes
+
+1. Add `officer_number` to `users` if not already present.
+2. Create `section_assignments` table if current assignment model is insufficient.
+3. Create `user_presence` table.
+4. Add unique active-assignment index.
+5. Create `v_section_assignment_presence` view or equivalent repository query.
+
+### Phase 3: Backend services
+
+1. Implement presence connect, heartbeat, and disconnect handlers.
+2. Implement offline timeout sweeper job.
+3. Implement assign/unassign endpoints with transactional integrity.
+4. Implement assignment board read endpoint.
+5. Add authorization checks.
+
+### Phase 4: Frontend section board
+
+1. Extend row view model with `displayStatus` and `assignedOfficerNumber`.
+2. Render officer label right aligned in white text.
+3. Hide officer label unless `displayStatus == ASSIGNED_ONLINE`.
+4. Add status marker rendering.
+5. Wire board refresh via realtime or polling.
+
+### Phase 5: Testing
+
+1. Unit test display-state derivation.
+2. Integration test assignment + presence joins.
+3. Test offline timeout behaviour.
+4. Test duplicate assignment prevention.
+5. Test responsive row layout on patrol device sizes.
+
+### Phase 6: Release
+
+1. Release behind feature flag if available.
+2. Backfill officer numbers if necessary.
+3. Monitor presence accuracy and stale-online rates.
+4. Enable for patrol users.
+
+## Milestones
+
+### Milestone 1: Theme consistency complete
+
+* `assigned`, `current`, and `show panel` all use the Code21 placeholder token.
+* Approved by UI review.
+
+### Milestone 2: Presence and assignment schema complete
+
+* Database migrations applied.
+* Active assignment constraint validated.
+* Presence timeout job working in lower environment.
+
+### Milestone 3: Assignment board API complete
+
+* Endpoint returns section name, display status, and officer number.
+* Auth and role checks verified.
+
+### Milestone 4: Frontend row rendering complete
+
+* `Officer 626` appears correctly for online assigned users.
+* Right alignment and white text verified.
+* Offline assigned users do not show officer label.
+
+### Milestone 5: Operational acceptance complete
+
+* Patrol users can identify assigned officers by section without opening detail views.
+* Realtime or polling updates observed under live test conditions.
+
+## Gathering Results
+
+Success should be measured in both correctness and patrol usability.
+
+### Functional acceptance criteria
+
+* When a section is assigned to an online officer, the row shows `Officer <number>` on the right.
+* When the officer goes offline, the officer label disappears within the configured timeout.
+* When a section is unassigned, the officer label disappears immediately.
+* `assigned`, `current`, and `show panel` visually match Code21 placeholder text colour.
+
+### Operational metrics
+
+* Presence update success rate
+* Average delay from disconnect to offline display
+* Number of stale online states per day
+* Assignment board API response time
+* Patrol user feedback on glance readability
+
+### Recommended post-release checks
+
+* Compare displayed online status against actual connected sessions.
+* Review timeout threshold after real patrol usage.
+* Confirm that assignment rows remain readable in daylight/mobile conditions.
+* Audit whether supervisors need an `assigned but offline` visual distinction strengthened.
+
+## Need Professional Help in Developing Your Architecture?
+
+Please contact me at [sammuti.com](https://sammuti.com) :)
