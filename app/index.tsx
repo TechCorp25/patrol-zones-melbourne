@@ -790,8 +790,6 @@ export default function PatrolMapScreen() {
       Alert.alert("Address required", "Please search and select an address before saving.");
       return;
     }
-    const resolvedOffenceType: Code21Type = (code21Type as Code21Type) || "621 - Stopped in no parking";
-
     const payload = {
       officerNumber,
       serviceRequestNumber,
@@ -801,8 +799,8 @@ export default function PatrolMapScreen() {
       requestTime: isoRequestTime,
       offenceDate,
       offenceTime,
-      offenceType: resolvedOffenceType,
-      code21Type: resolvedOffenceType,
+      offenceType: code21Type,
+      code21Type,
       dispatchNotes,
       attendanceNotes,
       pin: pinIssued ? pinValue : "",
@@ -1518,7 +1516,7 @@ export default function PatrolMapScreen() {
                 >
                   {/* Row 1: Officer # (read-only from auth) | Service request # */}
                   <View style={styles.rowInputs}>
-                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, styles.readOnlyInput]} placeholder="Officer #" placeholderTextColor="#BBBBBB" />
+                    <TextInput value={officerNumber} editable={false} style={[styles.modalInput, styles.rowInput, { color: '#FFFFFF', opacity: 1 }]} placeholder="Officer #" placeholderTextColor="#BBBBBB" />
                     <TextInput value={serviceRequestNumber} onChangeText={isFormReadOnly ? undefined : setServiceRequestNumber} editable={!isFormReadOnly} style={[styles.modalInput, styles.rowInput, isFormReadOnly && styles.readOnlyInput]} placeholder="Service request #" placeholderTextColor="#BBBBBB" />
                   </View>
 
@@ -2934,7 +2932,7 @@ const styles = StyleSheet.create({
   inProgressBar: {
     width: 4,
     alignSelf: "stretch",
-    backgroundColor: '#00E5FF',
+    backgroundColor: '#BBBBBB',
   },
   inProgressInfo: {
     flex: 1,
@@ -2944,19 +2942,19 @@ const styles = StyleSheet.create({
   },
   inProgressAddress: {
     fontFamily: "RobotoMono_700Bold",
-    color: '#00E5FF',
+    color: '#BBBBBB',
     fontSize: 12,
     letterSpacing: 0.3,
   },
   inProgressType: {
     fontFamily: "RobotoMono_400Regular",
-    color: '#00E5FF',
+    color: '#BBBBBB',
     fontSize: 10,
     letterSpacing: 0.2,
   },
   inProgressMeta: {
     fontFamily: "RobotoMono_400Regular",
-    color: '#00BCD4',
+    color: '#999999',
     fontSize: 10,
   },
   inProgressActions: {
@@ -3001,7 +2999,7 @@ const styles = StyleSheet.create({
   inProgressTextDone: {
     textDecorationLine: "line-through",
     textDecorationColor: '#00ff00',
-    color: '#00E5FF80',
+    color: '#BBBBBB80',
   },
   archiveSearchRow: {
     flexDirection: "row",

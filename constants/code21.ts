@@ -100,8 +100,8 @@ export interface Code21Request {
   offenceDate: string;
   offenceTime: string;
   requestTime: string;
-  offenceType: Code21Type;
-  code21Type: Code21Type;
+  offenceType: Code21Type | "";
+  code21Type: Code21Type | "";
   dispatchNotes: string;
   attendanceNotes: string;
   pin: string;
