@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
+import { getApiBaseUrl } from "@/lib/runtime-config";
 
 const IS_WEB = Platform.OS === "web";
-const API_BASE_URL = IS_WEB ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
+const API_BASE_URL = getApiBaseUrl();
 const AUTH_TOKEN_KEY = "patrol_auth_token";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -31,6 +32,7 @@ export function useAuth(): AuthContextValue {
 }
 
 function presenceRequest(endpoint: string, authToken: string): void {
+  if (!API_BASE_URL) return;
   fetch(`${API_BASE_URL}/api/presence/${endpoint}`, {
     method: "POST",
     headers: {
@@ -79,6 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
+        if (!API_BASE_URL) {
+          await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+          setLoading(false);
+          return;
+        }
         const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${storedToken}` },
         });
@@ -122,6 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (officerNumber: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      if (!API_BASE_URL) {
+        return { success: false, error: "App domain is missing. Set EXPO_PUBLIC_DOMAIN before logging in." };
+      }
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,6 +157,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     confirmPassword: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      if (!API_BASE_URL) {
+        return { success: false, error: "App domain is missing. Set EXPO_PUBLIC_DOMAIN before registering." };
+      }
       const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,10 +189,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentToken) {
       stopHeartbeat(currentToken);
       try {
-        await fetch(`${API_BASE_URL}/api/auth/logout`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${currentToken}` },
-        });
+        if (API_BASE_URL) {
+          await fetch(`${API_BASE_URL}/api/auth/logout`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${currentToken}` },
+          });
+        }
       } catch { /* ignore */ }
     }
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);

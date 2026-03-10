@@ -1,6 +1,7 @@
 import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
 import type { Region } from "react-native-maps";
+import Constants from "expo-constants";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
@@ -20,6 +21,7 @@ const Polygon = mapsModule?.Polygon;
 const Marker = mapsModule?.Marker;
 const Circle = mapsModule?.Circle;
 const Polyline = mapsModule?.Polyline;
+const IS_EXPO_GO = Constants.appOwnership === "expo";
 
 const ZOOM_THRESHOLD_NUMBERS = 0.004;
 
@@ -260,12 +262,12 @@ const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
       );
     }, []);
 
-    if (!MapView || !Polygon || !Marker || !Circle || !Polyline) {
+    if (IS_EXPO_GO || !MapView || !Polygon || !Marker || !Circle || !Polyline) {
       return (
         <View style={styles.fallbackRoot}>
           <Text style={styles.fallbackTitle}>Map unavailable in Expo Go</Text>
           <Text style={styles.fallbackText}>
-            This project currently uses react-native-maps, which requires a development build.
+            react-native-maps is not available in this runtime path. Use a custom dev build for full map support.
           </Text>
         </View>
       );
