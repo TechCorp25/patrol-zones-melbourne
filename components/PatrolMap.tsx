@@ -1,9 +1,28 @@
 import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
-import MapView, { Polygon, Marker, Circle, Polyline, Region } from "react-native-maps";
+import Constants from "expo-constants";
+import type { Region } from "react-native-maps";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
+
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+const mapsModule: typeof import("react-native-maps") | null = (() => {
+  if (Platform.OS === "web" || isExpoGo) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("react-native-maps") as typeof import("react-native-maps");
+  } catch {
+    return null;
+  }
+})();
+
+const MapView = mapsModule?.default;
+const Polygon = mapsModule?.Polygon;
+const Marker = mapsModule?.Marker;
+const Circle = mapsModule?.Circle;
+const Polyline = mapsModule?.Polyline;
 
 const ZOOM_THRESHOLD_NUMBERS = 0.004;
 
@@ -227,7 +246,7 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
   );
 });
 
-const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
+const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
   { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady, routePolyline, routeMode },
   ref,
 ) {
@@ -243,6 +262,17 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
         previousValue === shouldShowNumbers ? previousValue : shouldShowNumbers,
       );
     }, []);
+
+    if (!MapView || !Polygon || !Marker || !Circle || !Polyline) {
+      return (
+        <View style={styles.fallbackRoot}>
+          <Text style={styles.fallbackTitle}>Map unavailable in Expo Go</Text>
+          <Text style={styles.fallbackText}>
+            This project currently uses react-native-maps, which requires a development build.
+          </Text>
+        </View>
+      );
+    }
 
     return (
       <MapView
@@ -340,6 +370,27 @@ PatrolMap.displayName = "PatrolMap";
 export default memo(PatrolMap);
 
 const styles = StyleSheet.create({
+  fallbackRoot: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.background,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  fallbackTitle: {
+    color: Colors.dark.warning,
+    fontFamily: "RobotoMono_700Bold",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  fallbackText: {
+    color: Colors.dark.textSecondary,
+    fontFamily: "RobotoMono_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+  },
   arrowContainer: {
     width: 40,
     height: 40,
