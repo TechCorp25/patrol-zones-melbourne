@@ -1,15 +1,12 @@
 import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
-import Constants from "expo-constants";
 import type { Region } from "react-native-maps";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
 
-const isExpoGo = Constants.executionEnvironment === "storeClient";
-
 const mapsModule: typeof import("react-native-maps") | null = (() => {
-  if (Platform.OS === "web" || isExpoGo) return null;
+  if (Platform.OS === "web") return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require("react-native-maps") as typeof import("react-native-maps");
