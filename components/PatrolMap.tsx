@@ -1,9 +1,28 @@
-import React, { forwardRef, memo, useMemo, useState, useCallback } from 'react';
+import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
-import MapView, { Polygon, Marker, Circle, Region } from "react-native-maps";
+import Constants from "expo-constants";
+import type { Region } from "react-native-maps";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
+
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+const mapsModule: typeof import("react-native-maps") | null = (() => {
+  if (Platform.OS === "web" || isExpoGo) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("react-native-maps") as typeof import("react-native-maps");
+  } catch {
+    return null;
+  }
+})();
+
+const MapView = mapsModule?.default;
+const Polygon = mapsModule?.Polygon;
+const Marker = mapsModule?.Marker;
+const Circle = mapsModule?.Circle;
+const Polyline = mapsModule?.Polyline;
 
 const ZOOM_THRESHOLD_NUMBERS = 0.004;
 
@@ -16,8 +35,12 @@ export interface PatrolMapProps {
   assignedZoneId: string | null;
   destinations?: { id: string; latitude: number; longitude: number; title: string; subtitle?: string }[];
   onDestinationPress?: (destinationId: string) => void;
+  onDestinationLongPress?: (destinationId: string) => void;
+  previewPin?: { latitude: number; longitude: number; label: string } | null;
   mapType?: string;
   onMapReady?: () => void;
+  routePolyline?: { latitude: number; longitude: number }[];
+  routeMode?: "foot" | "vehicle";
 }
 
 const LIGHT_BASED_MAP_TYPES = new Set(["standard", "satellite", "hybrid"]);
@@ -89,6 +112,56 @@ function saturateHexColor(hex: string, boost: number) {
 
   return `#${toHex(nextR)}${toHex(nextG)}${toHex(nextB)}`;
 }
+
+const DestinationPin = memo(function DestinationPin({ preview = false }: { preview?: boolean }) {
+  return (
+    <View style={styles.pinContainer}>
+      <View style={[styles.pinHead, preview && styles.pinHeadPreview]} />
+      <View style={[styles.pinNeedle, preview && styles.pinNeedlePreview]} />
+    </View>
+  );
+});
+
+/**
+ * Wraps a single destination Marker and manages its own tracksViewChanges lifecycle.
+ *
+ * Starts with tracksViewChanges=true so the native layer has time to fully render
+ * the custom View into a stable bitmap, then locks it to false after 500 ms to
+ * prevent unnecessary re-renders on pan/zoom.  Each marker is independent, which
+ * eliminates the multi-marker race condition where simultaneous snapshots would
+ * capture blank views.
+ */
+const DestinationMarker = memo(function DestinationMarker({
+  destination,
+  onPress,
+  onLongPress,
+}: {
+  destination: { id: string; latitude: number; longitude: number; title: string; subtitle?: string };
+  onPress?: () => void;
+  onLongPress?: () => void;
+}) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setTracksViewChanges(false), 500);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  return (
+    <Marker
+      identifier={destination.id}
+      coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
+      anchor={{ x: 0.5, y: 1 }}
+      title={destination.title}
+      description={destination.subtitle}
+      tracksViewChanges={tracksViewChanges}
+      onPress={onPress}
+      onCalloutPress={onLongPress}
+    >
+      <DestinationPin />
+    </Marker>
+  );
+});
 
 const ZonePolygons = memo(function ZonePolygons({
   currentZoneId,
@@ -173,19 +246,33 @@ const StreetNumberMarkers = memo(function StreetNumberMarkers({
   );
 });
 
-const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
-  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, mapType, onMapReady },
+const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
+  { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady, routePolyline, routeMode },
   ref,
 ) {
     const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
-    const isLightMap = resolvedMapType === 'standard';
+    const isLightMap = LIGHT_BASED_MAP_TYPES.has(resolvedMapType);
     const isDarkStyle = !isLightMap;
     const roundedHeading = useMemo(() => Math.round(heading), [heading]);
     const [showNumbers, setShowNumbers] = useState(false);
 
     const handleRegionChange = useCallback((region: Region) => {
-      setShowNumbers(region.latitudeDelta < ZOOM_THRESHOLD_NUMBERS);
+      const shouldShowNumbers = region.latitudeDelta < ZOOM_THRESHOLD_NUMBERS;
+      setShowNumbers((previousValue) =>
+        previousValue === shouldShowNumbers ? previousValue : shouldShowNumbers,
+      );
     }, []);
+
+    if (!MapView || !Polygon || !Marker || !Circle || !Polyline) {
+      return (
+        <View style={styles.fallbackRoot}>
+          <Text style={styles.fallbackTitle}>Map unavailable in Expo Go</Text>
+          <Text style={styles.fallbackText}>
+            This project currently uses react-native-maps, which requires a development build.
+          </Text>
+        </View>
+      );
+    }
 
     return (
       <MapView
@@ -206,16 +293,49 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
         <ZonePolygons currentZoneId={currentZoneId} assignedZoneId={assignedZoneId} mapType={resolvedMapType} />
         <StreetNumberMarkers visible={showNumbers} dark={isDarkStyle} />
 
+        {routePolyline && routePolyline.length > 1 && (
+          <>
+            {/* Shadow layer for contrast on all map types */}
+            <Polyline
+              coordinates={routePolyline}
+              strokeColor="rgba(0,0,0,0.35)"
+              strokeWidth={7}
+              lineCap="round"
+              lineJoin="round"
+            />
+            <Polyline
+              coordinates={routePolyline}
+              strokeColor={routeMode === "foot" ? Colors.dark.success : Colors.dark.tint}
+              strokeWidth={4}
+              lineDashPattern={routeMode === "foot" ? [8, 6] : undefined}
+              lineCap="round"
+              lineJoin="round"
+            />
+          </>
+        )}
+
         {destinations.map((destination) => (
-          <Marker
+          <DestinationMarker
             key={destination.id}
-            coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
-            pinColor={Colors.dark.warning}
-            title={destination.title}
-            description={destination.subtitle}
+            destination={destination}
             onPress={() => onDestinationPress?.(destination.id)}
+            onLongPress={() => onDestinationLongPress?.(destination.id)}
           />
         ))}
+
+        {previewPin && (
+          <Marker
+            key="preview-pin"
+            identifier="preview-pin"
+            coordinate={{ latitude: previewPin.latitude, longitude: previewPin.longitude }}
+            anchor={{ x: 0.5, y: 1 }}
+            title={previewPin.label}
+            description="Code 21 address"
+            tracksViewChanges
+          >
+            <DestinationPin preview />
+          </Marker>
+        )}
 
         {location && (
           <>
@@ -231,9 +351,11 @@ const PatrolMap = forwardRef<MapView, PatrolMapProps>(function PatrolMapInner(
               anchor={{ x: 0.5, y: 0.5 }}
               flat
               rotation={roundedHeading}
+              tracksViewChanges={false}
             >
-              <View style={styles.userDot}>
-                <View style={styles.userDotInner} />
+              <View style={styles.arrowContainer}>
+                <View style={styles.arrowOutline} />
+                <View style={styles.arrowFill} />
               </View>
             </Marker>
           </>
@@ -248,21 +370,89 @@ PatrolMap.displayName = "PatrolMap";
 export default memo(PatrolMap);
 
 const styles = StyleSheet.create({
-  userDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.dark.tint,
-    borderWidth: 3,
-    borderColor: "#fff",
+  fallbackRoot: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.background,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  fallbackTitle: {
+    color: Colors.dark.warning,
+    fontFamily: "RobotoMono_700Bold",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  fallbackText: {
+    color: Colors.dark.textSecondary,
+    fontFamily: "RobotoMono_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  arrowContainer: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  userDotInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#fff",
+  arrowOutline: {
+    position: "absolute",
+    width: 0,
+    height: 0,
+    borderLeftWidth: 16,
+    borderRightWidth: 16,
+    borderBottomWidth: 32,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#0A1628",
+  },
+  arrowFill: {
+    position: "absolute",
+    top: 6,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 24,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#FF6B00",
+  },
+  pinContainer: {
+    alignItems: "center",
+  },
+  pinHead: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.dark.danger,
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.55,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  pinHeadPreview: {
+    backgroundColor: Colors.dark.tint,
+    borderColor: "#ffffff",
+  },
+  pinNeedle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: Colors.dark.danger,
+    marginTop: -1,
+  },
+  pinNeedlePreview: {
+    borderTopColor: Colors.dark.tint,
   },
   addressTextDark: {
     color: "#FFFFFF",

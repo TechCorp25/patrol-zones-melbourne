@@ -1,5 +1,16 @@
 # Patrol Zones — Melbourne CBD
 
+## Non-Negotiable Code Quality Standards
+
+These requirements apply to **all** code changes in this project without exception — new files, updates, improvements, refactors, and bug fixes alike.
+
+1. **Best in class quality** — code must be well-structured, readable, and maintainable. No shortcuts, no dead code, no commented-out blocks left behind.
+2. **Modern industry best practices** — follow current TypeScript, React Native, and Node.js conventions. Use appropriate patterns (hooks, memoisation, optimistic updates, etc.) where they apply.
+3. **No breaking changes** — every change must retain all existing features and functionality. Regressions are not acceptable.
+4. **Production ready** — all code must be TypeScript-clean (zero `tsc --noEmit` errors), free of runtime exceptions, resilient to edge cases, and tested before delivery.
+
+---
+
 ## Project Overview
 A mobile-first React Native (Expo) app for Melbourne City Council patrol officers. Provides real-time GPS location on a Melbourne CBD patrol zone map, a live magnetic compass, and daily zone assignment management.
 
@@ -7,23 +18,34 @@ A mobile-first React Native (Expo) app for Melbourne City Council patrol officer
 
 ### Frontend (Expo + React Native)
 - **Framework**: Expo SDK 54, Expo Router (file-based routing)
-- **Maps**: react-native-maps@1.18.0 (pinned — required)
+- **Maps**: react-native-maps@1.20.1 (pinned exact version — required for Expo Go iOS compatibility)
 - **Location**: expo-location (GPS + heading watchdog)
 - **Fonts**: @expo-google-fonts/roboto-mono
-- **Animation**: react-native-reanimated
+- **Animation**: react-native-reanimated@4.1.x + react-native-worklets (New Architecture, requires `newArchEnabled: true`)
 - **Storage**: @react-native-async-storage/async-storage
 - **Icons**: @expo/vector-icons (Ionicons, MaterialCommunityIcons)
 
 ### Backend (Express + TypeScript)
 - Serves landing page and Expo manifest
 - Port 5000
+- **Database**: PostgreSQL via Drizzle ORM (`server/db.ts` + `server/storage.ts` — `DbStorage`)
+- **Tables**: `users`, `code21_requests`, `sessions`, `section_assignments`, `user_presence` (schema in `shared/schema.ts`, managed by Drizzle)
+- **Auth**: Email+officerNumber registration (restricted to `@melbourne.vic.gov.au` TLD), officer number login, session tokens via `sessions` table
+- **Auth Middleware**: `requireAuth` gating all `/api/code21*`, `/api/route`, `/api/elevation`, `/api/presence/*`, `/api/sections/*` endpoints
+- **Auth Endpoints**: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
+- **Presence Endpoints**: `POST /api/presence/connect`, `POST /api/presence/heartbeat`, `POST /api/presence/disconnect`
+- **Assignment Endpoints**: `GET /api/sections/assignment-board`, `POST /api/sections/:sectionId/assign`, `POST /api/sections/:sectionId/unassign`
+- **API**: `POST /api/code21`, `GET /api/code21?officerNumber=...` — persistent storage (auth-gated)
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `app/index.tsx` | Main map screen — GPS, zones, compass, panel, zone info modal |
-| `app/_layout.tsx` | Root layout with fonts, providers |
+| `app/_layout.tsx` | Root layout with fonts, providers, auth gate |
+| `app/login.tsx` | Login screen (officer number + password) |
+| `app/register.tsx` | Registration screen (email, officer number, password, confirm) |
+| `lib/auth-context.tsx` | Auth context provider — login/register/logout, token storage |
 | `constants/zones.ts` | All 15 patrol zone polygon definitions + patrol streets + boundaries + heading labels |
 | `constants/streets.ts` | Melbourne CBD street geometry — 18 streets defined as polylines through real OSM intersection coordinates; `getCurrentStreetPosition()` finds closest segment across all streets |
 | `constants/streetNumbers.ts` | Authoritative street number block ranges (543 markers) from City of Melbourne data; `getStreetNumberMarkers()` generates positioned map markers |
@@ -58,10 +80,11 @@ All zones use proper 4-point polygon coordinates derived from OpenStreetMap inte
 
 ## Features
 - Live GPS position (updates every 2s / 3m distance)
+- High-contrast directional arrowhead marker (orange fill #FF6B00 with dark outline #0A1628) — visible on all map styles including dark and satellite
 - Real-time zone detection (point-in-polygon ray casting)
 - Magnetic compass with Melbourne CBD street labels (La Trobe=N, Spring=E, Flinders=S, Spencer=W) — 4 cardinal directions only, no sub-directional points
 - Map type toggle (iOS: Dark/Light/Satellite/Hybrid; Android: Standard/Satellite/Hybrid) with dark/light style switching
-- Zone assignment (persisted via AsyncStorage)
+- Zone assignment (persisted via AsyncStorage + server-side `section_assignments` table)
 - Zone info modal showing patrol streets, laneways, and boundary details
 - Out-of-zone warnings
 - Coordinate display with accuracy indicator
@@ -69,6 +92,14 @@ All zones use proper 4-point polygon coordinates derived from OpenStreetMap inte
 - Compass heading with Melbourne CBD grid-relative direction labels (Toward La Trobe/Spring/Flinders/Spencer)
 - Parking zone numbers displayed for the current street segment (711 zones across 491 segments, amber-colored "P" prefix)
 - Collapsible bottom panel — minimize button (chevron-down) hides the panel entirely to maximize map view; pull-tab with swipe-up gesture or tap restores it. Overlay buttons (map type, zone info, locate) animate position smoothly with panel state
+
+## EAS Build / App Store Preparation
+- `expo-dev-client` installed for custom development builds (replaces Expo Go)
+- `eas.json` created with three build profiles: `development` (dev client, internal distribution), `preview` (internal distribution), `production` (auto-increment versioning)
+- Android Google Maps API key placeholder added to `app.json` — replace `GOOGLE_MAPS_API_KEY_PLACEHOLDER` with real key before building
+- To build: `eas build --profile development --platform ios` (or `android`)
+- To submit: `eas submit --platform ios` (or `android`)
+- Still needed before store submission: EAS project initialization (`eas project:init`), production credentials, privacy policy URL, real Google Maps API key
 
 ## Zone Audit (Completed)
 All 15 patrol zone `patrolStreets` definitions have been audited and corrected against Melbourne CBD geography and parking zone data. Key fixes applied:
@@ -105,6 +136,159 @@ The `scripts/generate_melbourne_cbd_street_blocks.py` script fetches authoritati
 - Outputs: `scripts/out/melbourne_cbd_street_blocks.json` — 198 streets, ~14k street numbers, organized by block (between-streets) and side (north/south or east/west)
 - Run: `python scripts/generate_melbourne_cbd_street_blocks.py --outdir scripts/out --single`
 - Dependencies: requests, shapely, rtree, pyproj, tqdm, orjson (+ libspatialindex system dep)
+
+## Code 21 Modal — Three-Tab Workflow
+
+The Code 21 modal has three tabs navigated via horizontal swipe or tab bar tap:
+
+- **NEW REQUEST / EDIT REQUEST (Tab 0)**: Full form for initiating a physical attendance — address search, offence type, vehicle details (make, model, colour, rego), dispatch/attendance notes, PIN, officer notes, travel mode. Save adds an optimistic map marker immediately; server persists in background. Input text rendered in #FFFF00, placeholders in light grey.
+- **IN PROGRESS (Tab 1)**: Live list of all active and recently completed Code 21 requests. Active items use #00E5FF (cyan) for high-contrast daylight visibility. Complete items use 50% opacity with #00ff00 green strike-through. Both active and completed forms can be opened by the author (edit for active, read-only view for completed).
+- **ARCHIVE (Tab 2)**: Search historical records by SR# or Officer#.
+
+### Read-Only State & PIN Workflow
+- A PIN alone does NOT trigger read-only state
+- Permanent read-only requires ALL of: PIN, vehicle make, vehicle model, vehicle colour, vehicle rego, offence type, offence location (address)
+- Missing fields are surfaced via validation warning when PIN is saved but fields incomplete
+- Once all requirements satisfied and saved, protected fields become permanently read-only
+- Officer notes can still be added after read-only (append-only with server-generated timestamps)
+
+### Offence Time
+- Auto-generated when a form is first saved with a PIN present
+- Set to the server-side save timestamp at that moment
+- Stable after initial creation (not overwritten on subsequent saves)
+- Original request time (`requestTime`) preserved unchanged
+
+### Officer Notes
+- Append-only audit trail with timestamped entries
+- Available before and after read-only state
+- Each note receives a save-time timestamp
+- Stored as JSON array in `officer_notes` column
+- Server endpoint: `POST /api/code21/:id/notes`
+
+### Permissions
+- Author (matching officerNumber) can open and read completed and archived forms
+- Non-author access restricted via server-side enforcement
+- `PUT /api/code21/:id` for form updates, `GET /api/code21/:id` for individual read access
+
+### UI Layout
+- Assigned/Current zone display moved from header to top of bottom panel (above compass row)
+- Alert banner (in/out of assigned zone) remains in header
+- Panel minimum height increased to 240px to accommodate zone status row + compass
+- Address search dropdown has a dismiss button (X icon) to close without forced selection
+
+### Status Lifecycle
+- New requests default to `status: "in_progress"`
+- Completed requests are removed from Tab 1 and the route optimiser, but their map markers remain for the session
+- `PATCH /api/code21/:id` endpoint updates status in the database
+
+### Data Model
+- `vehicle_model` text field (default: empty string)
+- `officer_notes` text field storing JSON array of `{note, timestamp}` entries (default: "[]")
+- Migration: `migrations/0001_add_vehicle_model_officer_notes.sql`
+
+## Section Assignment & Presence (SPEC-001)
+
+### Overview
+Server-side section assignment and officer presence tracking. Officers on patrol can see who is covering each zone directly in the zone selector list without opening extra screens.
+
+### Database Tables
+- `section_assignments` — tracks which officer is assigned to which zone; unique active assignment per zone enforced via partial unique index
+- `user_presence` — heartbeat-driven online/offline status per user; 30s client heartbeat, 90s server timeout sweeper (runs every 60s)
+- Migration: `migrations/0002_section_assignment_presence.sql`
+
+### Presence Lifecycle
+- Client sends `POST /api/presence/connect` on login / app resume
+- Client sends `POST /api/presence/heartbeat` every 30 seconds while active
+- Client sends `POST /api/presence/disconnect` on logout / app backgrounded
+- Server sweeper marks users offline after 90s without heartbeat
+
+### Assignment Board
+- `GET /api/sections/assignment-board` returns all 15 zones with derived display status:
+  - `UNASSIGNED` — no active assignment
+  - `ASSIGNED_OFFLINE` — assigned but officer is offline
+  - `ASSIGNED_ONLINE` — assigned and officer is online
+- Client polls every 15 seconds for near-real-time updates
+
+### Zone Row Display
+- Each zone row in the selector shows:
+  - Left: zone name + description
+  - Right: presence dot (green=online, grey=offline) + "Officer {number}" in white text (only when ASSIGNED_ONLINE)
+  - HERE badge and checkmark still shown as before
+
+### UI Token Alignment
+- `ASSIGNED`, `CURRENT`, and `SHOW PANEL` labels now use `Colors.dark.textPlaceholder` (#BBBBBB) — matching Code21 form placeholder text colour
+- Single source of truth in `constants/colors.ts`
+
+## Optimisation History
+
+### Repo-Wide Assessment (2026-03-08)
+Applied a full-scale evidence-based assessment and optimisation pass. All changes verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and smoke test.
+
+**Correctness / Reliability**
+- `server/routes.ts` — Rate limiter `attempts` Map now purges stale entries when size exceeds 5 000, preventing unbounded memory growth in long-running processes
+- `server/routes.ts` — `POST /api/elevation` now validates input with Zod (was an unsafe cast with no type or bounds checking); also validates the external API response shape before mapping
+- `server/routes.ts` — Elevation endpoint now guards against malformed upstream responses returning wrong result count
+
+**Performance / Battery**
+- `components/PatrolMap.tsx` — User location marker now has `tracksViewChanges={false}`, preventing a native bitmap snapshot cycle every 150 ms heading update (was always implicitly `true` — iOS/Android re-rendered on every compass tick)
+- `app/index.tsx` — `destinations` prop memoized via `useMemo`; was recreating a new array on every render, defeating `memo(PatrolMap)` and causing unnecessary re-renders
+- `app/index.tsx` — `onDestinationPress` and `onDestinationLongPress` converted from inline JSX lambdas to `useCallback` hooks; was creating new function references on every render, defeating `memo(PatrolMap)`
+- `app/index.tsx` — `MAP_TYPES`, `MAP_TYPE_LABELS`, `MAP_TYPE_ICONS` lifted to module scope; `Platform.OS` is stable at runtime, no need to re-evaluate on every render
+- `app/index.tsx` — `visibleCode21Requests` memo now consumes `inProgressRequests` directly instead of re-filtering `code21Requests` a second time
+
+**Dead Code Removed**
+- `lib/query-client.ts` — Removed `getApiUrl`, `apiRequest`, `getQueryFn` exports — none were called anywhere in the codebase; `queryClient` is the only used export
+- `components/KeyboardAwareScrollViewCompat.tsx` — Removed; the component was never imported or used
+- `app/_layout.tsx` — Removed redundant `RootLayoutNav` inner component; the `Stack` is now inlined directly, eliminating an extra function allocation per mount
+- `app/index.tsx` — Removed empty `onMapReady={() => {}}` no-op prop; was creating a new function reference on every render for no effect
+
+**Production-Readiness Pass (2026-03-08)**
+Applied five targeted hardening changes. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and end-to-end smoke test.
+
+- `server/index.ts` — Added `app.set("trust proxy", 1)` so `req.ip` resolves the real client IP behind Replit's reverse proxy; without this the rate limiter keyed all requests to the same proxy IP
+- `server/index.ts` — Fixed Metro dev proxy catching all `/api/*` paths before Express route handlers; added an explicit guard so API requests reach their handlers
+- `shared/schema.ts`, `server/storage.ts` — Sessions now persisted to a `sessions` DB table (token, userId, createdAt, expiresAt); 30-day TTL; expired sessions are lazily deleted on read; a scheduled purge fires on startup and every 6 hours
+- `constants/offenceTypes.ts` (new) — `CODE21_TYPES as const` extracted to a dependency-free file; `shared/schema.ts` and `constants/code21.ts` both import from it, eliminating the duplicate enum list
+- `constants/intersections.ts` (new) — Shared Melbourne CBD intersection coordinates extracted from `streets.ts` and `streetNumbers.ts`; both files now import the single source, eliminating ~200 lines of duplicated coordinate data
+
+**Bug Fix Pass (2026-03-08) — Multi-stop routing crash + stale location**
+Three targeted fixes in `app/index.tsx`. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and end-to-end smoke test.
+
+- `animateToRegion` crash — the nav-target animation effect previously depended on both `activeNavRequest` and `location`, firing every 2 seconds on each GPS update during navigation and starting overlapping 700 ms animations, which caused a native crash in react-native-maps. Fixed by removing `location` from the dependency array and reading `locationRef.current` inside the effect so it only fires when the nav target actually changes.
+- Stale-closure route location — the route-fetching `useEffect` called `fetchOptimisedRoute(..., location)` where `location` was a stale closure variable captured from the render that created the timeout. Fixed by reading `locationRef.current` inside the `setTimeout` callback so OSRM always receives the live position; `fetchOptimisedRoute` added to the effect's dependency array and the suppression comment removed.
+- Unhandled optimisation rejection — `optimiseWithTerrainAndSLA` promise was chained with `.then()` only; added `.catch()` that falls back to the unoptimised request order so a transient elevation API failure can't silently crash the routing chain.
+- `Linking.openURL` unhandled rejection — wrapped in `.catch()` to show an `Alert` if Google Maps cannot be opened on the device.
+- Route fetch race condition — saving Code21 entries triggers `inProgressRequests` → optimise → `fetchOptimisedRoute` cascade; concurrent OSRM fetches could corrupt state. Fixed by adding `AbortController` to `fetchOptimisedRoute` (aborts prior in-flight request on each new call), adding `cancelled` flag to optimise effect, clearing polyline/routeInfo in the early-exit branch, and slicing waypoints to 25 max to match server-side limit.
+
+**Full Codebase Audit Pass (2026-03-08)**
+Applied comprehensive audit fixes across frontend and backend. All verified via `tsc --noEmit` (zero errors), `expo lint` (zero warnings), and smoke test.
+
+- `app/index.tsx` — Fixed stale `SCREEN_HEIGHT`/`PANEL_MAX` module-scope constants that never updated on screen size changes; moved to component-scope `windowDimensions`/`panelMax` computed from `Dimensions.get("window")` each render
+- `app/index.tsx` — Fixed `modalContentWidth` `useMemo` with empty deps `[]`; now properly depends on `windowDimensions.width` so the horizontal ScrollView paging width updates when the window dimensions change
+- `app/index.tsx` — Removed `marginLeft: 'auto' as any` type cast on `routeSpinner` style; React Native's `marginLeft` type accepts `'auto'` natively
+- `server/storage.ts` — Fixed SQL injection vulnerability in `searchCode21Archive`: user-supplied `%`, `_`, and `\` characters in ILIKE patterns are now escaped before wrapping in `%...%`
+- `server/storage.ts` — Added `LIMIT 100` to archive search query and `LIMIT 500` to officer number query to prevent unbounded result sets
+
+**Authentication System (2026-03-08)**
+Full auth system implemented end-to-end:
+- Registration restricted to `@melbourne.vic.gov.au` email addresses, with officer number uniqueness checks
+- Login via officer number + password; session tokens stored in AsyncStorage
+- `requireAuth` middleware gates all Code21, route, and elevation API endpoints (returns 401 without valid Bearer token)
+- Auth context (`lib/auth-context.tsx`) exposes `user`, `token`, `login`, `register`, `logout` across the app
+- Login/register screens with Expo Router navigation and auth gate in `_layout.tsx`
+- Officer number auto-filled from auth context (read-only in Code21 form)
+- PIN toggle and PIN # input become read-only when editing a request that was previously saved with a PIN
+- Service Request # becomes read-only when editing a request that was previously saved with a PIN
+- Logout button in the top bar next to GPS indicator
+
+**Startup Crash Fix (2026-03-08) — React Compiler + Reanimated worklet ordering**
+Fixed `Exception in HostFunction:<unknown>` crash that caused the app to crash immediately after the main screen rendered on iOS Expo Go.
+
+Root cause: In Expo SDK 54, the React Compiler is built into `babel-preset-expo`. Without an explicit Babel plugin declaration, the Reanimated worklet transform was not guaranteed to run *after* the React Compiler. When the ordering was wrong, `useAnimatedStyle` and `runOnJS` worklets were not properly serialized — the first time the UI thread called into any worklet (the panel animated style fires the moment the map screen mounts), it threw `Exception in HostFunction:<unknown>` and crashed the app.
+
+Fix: Added `react-native-reanimated/plugin` as an explicit `plugins` entry in `babel.config.js` so it is always applied last, after all preset transforms including the React Compiler. All package versions reverted to correct state: react-native-maps@1.20.1, react-native-reanimated@4.1.6, react-native-worklets@0.5.1, `newArchEnabled: true`.
+
+---
 
 ## Running the App
 - Start Backend: `npm run server:dev` (port 5000)

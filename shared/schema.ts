@@ -1,14 +1,43 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { CODE21_TYPES } from "../constants/offenceTypes";
+
+export const ALLOWED_EMAIL_DOMAIN = "melbourne.vic.gov.au";
 
 export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  officerNumber: text("officer_number").notNull().unique(),
   password: text("password").notNull(),
+});
+
+export const registerUserSchema = z.object({
+  email: z
+    .string()
+    .email("Invalid email address")
+    .refine(
+      (val) => val.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`),
+      { message: `Email must end with @${ALLOWED_EMAIL_DOMAIN}` },
+    ),
+  officerNumber: z
+    .string()
+    .min(1, "Officer number is required")
+    .max(32, "Officer number too long"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(256),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+export const loginSchema = z.object({
+  officerNumber: z.string().min(1).max(32),
+  password: z.string().min(1).max(256),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -32,13 +61,16 @@ export const code21Requests = pgTable("code21_requests", {
   code21Type: text("code21_type").notNull(),
   dispatchNotes: text("dispatch_notes").notNull(),
   attendanceNotes: text("attendance_notes").notNull(),
-  pin: text("pin").notNull(),
+  pin: text("pin").notNull().default(""),
   vehicleMake: text("vehicle_make").notNull().default(""),
+  vehicleModel: text("vehicle_model").notNull().default(""),
   vehicleColour: text("vehicle_colour").notNull().default(""),
   vehicleRego: text("vehicle_rego").notNull().default(""),
   travelMode: text("travel_mode").notNull(),
   description: text("description").notNull(),
   formattedDocument: text("formatted_document").notNull().default(""),
+  status: text("status").notNull().default("in_progress"),
+  officerNotes: text("officer_notes").notNull().default("[]"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -50,79 +82,84 @@ export const insertCode21RequestSchema = createInsertSchema(code21Requests)
     requestTime: z.string().datetime(),
     offenceDate: z.string().optional().default(""),
     offenceTime: z.string().optional().default(""),
-    offenceType: z.enum([
-      "621 - Stopped in no parking",
-      "623 - Stopped on painted island",
-      "624 - Stopped near tram stop sign",
-      "626 - Parked across driveway",
-      "627 - Stopped near safety zone",
-      "701 - Overstayed time limit",
-      "702 - Meter expired / failed to pay",
-      "704 - Stopped in bicycle parking area",
-      "705 - Stopped in motorcycle parking area",
-      "706 - Parked contrary to parking area requirements",
-      "711 - Parked outside bay",
-      "715 - Stopped on pedestrian crossing",
-      "716 - Stopped before pedestrian crossing",
-      "717 - Stopped after pedestrian crossing",
-      "718 - Stopped before bicycle crossing",
-      "719 - Stopped after bicycle crossing",
-      "720 - Stopped in loading zone",
-      "721 - Overstayed loading zone",
-      "722 - Overstayed loading zone sign time",
-      "723 - Stopped in truck zone",
-      "726 - Stopped in taxi zone",
-      "727 - Stopped in bus zone",
-      "728 - Stopped in permit zone",
-      "729 - Double parked",
-      "730 - Stopped near fire hydrant",
-      "735 - Stopped after bus stop sign",
-      "736 - Stopped on bicycle path",
-      "737 - Stopped on footpath",
-      "742 - Stopped near traffic lights intersection",
-      "758 - Stopped at yellow line",
-    ]).default("621 - Stopped in no parking"),
-    code21Type: z.enum([
-      "621 - Stopped in no parking",
-      "623 - Stopped on painted island",
-      "624 - Stopped near tram stop sign",
-      "626 - Parked across driveway",
-      "627 - Stopped near safety zone",
-      "701 - Overstayed time limit",
-      "702 - Meter expired / failed to pay",
-      "704 - Stopped in bicycle parking area",
-      "705 - Stopped in motorcycle parking area",
-      "706 - Parked contrary to parking area requirements",
-      "711 - Parked outside bay",
-      "715 - Stopped on pedestrian crossing",
-      "716 - Stopped before pedestrian crossing",
-      "717 - Stopped after pedestrian crossing",
-      "718 - Stopped before bicycle crossing",
-      "719 - Stopped after bicycle crossing",
-      "720 - Stopped in loading zone",
-      "721 - Overstayed loading zone",
-      "722 - Overstayed loading zone sign time",
-      "723 - Stopped in truck zone",
-      "726 - Stopped in taxi zone",
-      "727 - Stopped in bus zone",
-      "728 - Stopped in permit zone",
-      "729 - Double parked",
-      "730 - Stopped near fire hydrant",
-      "735 - Stopped after bus stop sign",
-      "736 - Stopped on bicycle path",
-      "737 - Stopped on footpath",
-      "742 - Stopped near traffic lights intersection",
-      "758 - Stopped at yellow line",
-    ]),
+    offenceType: z.union([z.enum([...CODE21_TYPES] as [string, ...string[]]), z.literal("")]).default(""),
+    code21Type: z.union([z.enum([...CODE21_TYPES] as [string, ...string[]]), z.literal("")]).default(""),
     serviceRequestNumber: z.string().optional().default(""),
+    pin: z.string().optional().default(""),
     vehicleMake: z.string().optional().default(""),
+    vehicleModel: z.string().optional().default(""),
     vehicleColour: z.string().optional().default(""),
     vehicleRego: z.string().optional().default(""),
     formattedDocument: z.string().optional().default(""),
     travelMode: z.enum(["foot", "vehicle"]),
+    status: z.enum(["in_progress", "complete"]).optional().default("in_progress"),
+    officerNotes: z.string().optional().default("[]"),
   });
+
+export const sessions = pgTable("sessions", {
+  token: varchar("token").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export const ASSIGNMENT_STATUSES = ["ACTIVE", "ENDED"] as const;
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+export const DISPLAY_STATUSES = ["UNASSIGNED", "ASSIGNED_OFFLINE", "ASSIGNED_ONLINE"] as const;
+export type DisplayStatus = (typeof DISPLAY_STATUSES)[number];
+
+export const sectionAssignments = pgTable("section_assignments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sectionId: varchar("section_id").notNull(),
+  officerUserId: varchar("officer_user_id").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  assignedByUserId: varchar("assigned_by_user_id"),
+  endedByUserId: varchar("ended_by_user_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("uq_section_active_assignment")
+    .on(table.sectionId)
+    .where(sql`status = 'ACTIVE'`),
+]);
+
+export const userPresence = pgTable("user_presence", {
+  userId: varchar("user_id").primaryKey(),
+  isOnline: boolean("is_online").notNull().default(false),
+  sessionId: varchar("session_id"),
+  connectedAt: timestamp("connected_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  offlineAt: timestamp("offline_at", { withTimezone: true }),
+  clientType: varchar("client_type", { length: 30 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const assignSectionSchema = z.object({
+  officerUserId: z.string().min(1).optional(),
+});
+
+export const presenceConnectSchema = z.object({
+  sessionId: z.string().optional(),
+  clientType: z.enum(["web", "ios", "android"]).optional().default("android"),
+});
+
+export interface SectionBoardRow {
+  sectionId: string;
+  sectionName: string;
+  displayStatus: DisplayStatus;
+  assignedOfficerNumber: string | null;
+  assignedAt: string | null;
+}
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCode21Request = z.infer<typeof insertCode21RequestSchema>;
 export type Code21Request = InsertCode21Request & { id: string; createdAt: string };
+export type Code21Status = "in_progress" | "complete";
+export type Session = typeof sessions.$inferSelect;
+export type SectionAssignment = typeof sectionAssignments.$inferSelect;
+export type UserPresence = typeof userPresence.$inferSelect;

@@ -4,10 +4,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 
 export interface PatrolMapProps {
-  location: { latitude: number; longitude: number } | null;
+  location: { latitude: number; longitude: number; accuracy?: number | null } | null;
   heading: number;
   currentZoneId: string | null;
   assignedZoneId: string | null;
+  destinations?: { id: string; latitude: number; longitude: number; title: string; subtitle?: string }[];
+  onDestinationPress?: (destinationId: string) => void;
   mapType?: string;
   onMapReady?: () => void;
 }

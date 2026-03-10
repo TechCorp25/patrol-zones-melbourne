@@ -1,4 +1,7 @@
-import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
+import { getAllAddressOptions } from "@/constants/streetNumbers";
+import { CODE21_TYPES, type Code21Type } from "./offenceTypes";
+export type { Code21Type };
+export { CODE21_TYPES };
 
 export interface AddressOption {
   id: string;
@@ -7,47 +10,12 @@ export interface AddressOption {
   longitude: number;
 }
 
-const ADDRESS_OPTIONS: AddressOption[] = getAllStreetNumberMarkers().map((marker) => ({
-  id: `${marker.label}-${marker.lat.toFixed(6)}-${marker.lng.toFixed(6)}`,
-  label: marker.label,
-  latitude: marker.lat,
-  longitude: marker.lng,
+const ADDRESS_OPTIONS: AddressOption[] = getAllAddressOptions().map((opt) => ({
+  id: opt.id,
+  label: opt.label,
+  latitude: opt.lat,
+  longitude: opt.lng,
 }));
-
-const CODE21_TYPES = [
-  "621 - Stopped in no parking",
-  "623 - Stopped on painted island",
-  "624 - Stopped near tram stop sign",
-  "626 - Parked across driveway",
-  "627 - Stopped near safety zone",
-  "701 - Overstayed time limit",
-  "702 - Meter expired / failed to pay",
-  "704 - Stopped in bicycle parking area",
-  "705 - Stopped in motorcycle parking area",
-  "706 - Parked contrary to parking area requirements",
-  "711 - Parked outside bay",
-  "715 - Stopped on pedestrian crossing",
-  "716 - Stopped before pedestrian crossing",
-  "717 - Stopped after pedestrian crossing",
-  "718 - Stopped before bicycle crossing",
-  "719 - Stopped after bicycle crossing",
-  "720 - Stopped in loading zone",
-  "721 - Overstayed loading zone",
-  "722 - Overstayed loading zone sign time",
-  "723 - Stopped in truck zone",
-  "726 - Stopped in taxi zone",
-  "727 - Stopped in bus zone",
-  "728 - Stopped in permit zone",
-  "729 - Double parked",
-  "730 - Stopped near fire hydrant",
-  "735 - Stopped after bus stop sign",
-  "736 - Stopped on bicycle path",
-  "737 - Stopped on footpath",
-  "742 - Stopped near traffic lights intersection",
-  "758 - Stopped at yellow line",
-] as const;
-
-export type Code21Type = (typeof CODE21_TYPES)[number];
 
 const VEHICLE_MAKES = [
   "Toyota",
@@ -67,6 +35,42 @@ const VEHICLE_MAKES = [
   "Holden",
 ] as const;
 
+const VEHICLE_MODELS = [
+  "Corolla",
+  "Camry",
+  "HiLux",
+  "RAV4",
+  "Ranger",
+  "Focus",
+  "Mustang",
+  "i30",
+  "Tucson",
+  "Cerato",
+  "Sportage",
+  "Mazda3",
+  "CX-5",
+  "Outlander",
+  "ASX",
+  "X-Trail",
+  "Qashqai",
+  "Impreza",
+  "Outback",
+  "Golf",
+  "Polo",
+  "C-Class",
+  "A-Class",
+  "3 Series",
+  "X3",
+  "A3",
+  "Q5",
+  "Civic",
+  "CR-V",
+  "IS",
+  "RX",
+  "Commodore",
+  "Astra",
+] as const;
+
 const VEHICLE_COLOURS = [
   "White",
   "Black",
@@ -81,6 +85,11 @@ const VEHICLE_COLOURS = [
   "Gold",
 ] as const;
 
+export interface OfficerNote {
+  note: string;
+  timestamp: string;
+}
+
 export interface Code21Request {
   id: string;
   officerNumber: string;
@@ -91,17 +100,20 @@ export interface Code21Request {
   offenceDate: string;
   offenceTime: string;
   requestTime: string;
-  offenceType: Code21Type;
-  code21Type: Code21Type;
+  offenceType: Code21Type | "";
+  code21Type: Code21Type | "";
   dispatchNotes: string;
   attendanceNotes: string;
   pin: string;
   vehicleMake: string;
+  vehicleModel: string;
   vehicleColour: string;
   vehicleRego: string;
   travelMode: "foot" | "vehicle";
   description: string;
   formattedDocument: string;
+  status: "in_progress" | "complete";
+  officerNotes: string;
   createdAt: string;
 }
 
@@ -120,6 +132,10 @@ export function getVehicleMakes(): readonly string[] {
   return VEHICLE_MAKES;
 }
 
+export function getVehicleModels(): readonly string[] {
+  return VEHICLE_MODELS;
+}
+
 export function getVehicleColours(): readonly string[] {
   return VEHICLE_COLOURS;
 }
@@ -133,12 +149,76 @@ export function searchFilterOptions(query: string, options: readonly string[], l
   return options.filter((option) => option.toLowerCase().includes(normalized)).slice(0, limit);
 }
 
+function squaredDistance(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+): number {
+  const dLat = a.latitude - b.latitude;
+  const dLng = a.longitude - b.longitude;
+  return (dLat * dLat) + (dLng * dLng);
+}
+
+function routeCostFrom(
+  origin: { latitude: number; longitude: number },
+  route: Code21Request[],
+): number {
+  if (route.length === 0) return 0;
+
+  let total = squaredDistance(origin, route[0]);
+  for (let index = 1; index < route.length; index += 1) {
+    total += squaredDistance(route[index - 1], route[index]);
+  }
+
+  return total;
+}
+
+function optimiseWithTwoOpt(
+  origin: { latitude: number; longitude: number },
+  route: Code21Request[],
+): Code21Request[] {
+  const candidate = [...route];
+  const stopCount = candidate.length;
+
+  if (stopCount < 4) return candidate;
+
+  let bestCost = routeCostFrom(origin, candidate);
+  let improved = true;
+  let passes = 0;
+  const maxPasses = Math.min(8, stopCount);
+
+  while (improved && passes < maxPasses) {
+    improved = false;
+    passes += 1;
+
+    for (let i = 0; i < stopCount - 2; i += 1) {
+      for (let k = i + 1; k < stopCount - 1; k += 1) {
+        const reordered = [
+          ...candidate.slice(0, i),
+          ...candidate.slice(i, k + 1).reverse(),
+          ...candidate.slice(k + 1),
+        ];
+
+        const nextCost = routeCostFrom(origin, reordered);
+        if (nextCost + Number.EPSILON < bestCost) {
+          candidate.splice(0, candidate.length, ...reordered);
+          bestCost = nextCost;
+          improved = true;
+        }
+      }
+    }
+  }
+
+  return candidate;
+}
+
 export function optimiseCode21Route(
   currentLocation: { latitude: number; longitude: number },
   requests: Code21Request[],
 ): Code21Request[] {
+  if (requests.length < 2) return [...requests];
+
   const pending = [...requests];
-  const ordered: Code21Request[] = [];
+  const greedyOrder: Code21Request[] = [];
   let cursor = { ...currentLocation };
 
   while (pending.length > 0) {
@@ -146,7 +226,7 @@ export function optimiseCode21Route(
     let bestDistance = Number.POSITIVE_INFINITY;
 
     pending.forEach((request, index) => {
-      const distance = Math.hypot(request.latitude - cursor.latitude, request.longitude - cursor.longitude);
+      const distance = squaredDistance(request, cursor);
       if (distance < bestDistance) {
         bestDistance = distance;
         nextIndex = index;
@@ -154,9 +234,9 @@ export function optimiseCode21Route(
     });
 
     const [next] = pending.splice(nextIndex, 1);
-    ordered.push(next);
+    greedyOrder.push(next);
     cursor = { latitude: next.latitude, longitude: next.longitude };
   }
 
-  return ordered;
+  return optimiseWithTwoOpt(currentLocation, greedyOrder);
 }

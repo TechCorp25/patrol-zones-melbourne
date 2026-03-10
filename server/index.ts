@@ -1,5 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
@@ -10,6 +11,7 @@ import {
   logStructured,
 } from "./observability";
 import { validateEnvGuardrails } from "./env";
+import { storage } from "./storage";
 
 const app = express();
 
@@ -200,7 +202,12 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     const platform = req.header("expo-platform");
+    const isDev = process.env.NODE_ENV !== "production";
+
     if (platform && (platform === "ios" || platform === "android")) {
+      if (isDev) {
+        return next();
+      }
       return serveExpoManifest(platform, res);
     }
 
@@ -218,6 +225,30 @@ function configureExpoAndLanding(app: express.Application) {
 
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
+
+  if (process.env.NODE_ENV !== "production") {
+    const metroProxy = createProxyMiddleware({
+      target: "http://localhost:8081",
+      changeOrigin: true,
+      ws: true,
+      on: {
+        error: (err, _req, res) => {
+          logStructured("warn", "Metro proxy error (bundler may still be starting)", {
+            message: (err as Error).message,
+          });
+          if (res && "writeHead" in res) {
+            (res as Response).status(502).send("Metro bundler not ready yet");
+          }
+        },
+      },
+    });
+    // Exclude /api routes so they reach Express handlers, not Metro
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith("/api")) return next();
+      return metroProxy(req, res, next);
+    });
+    logStructured("info", "Metro dev proxy configured → localhost:8081");
+  }
 
   logStructured("info", "Expo routing configured");
 }
@@ -257,6 +288,10 @@ function setupErrorHandler(app: express.Application) {
 (async () => {
   validateEnvGuardrails();
 
+  // Trust the first proxy hop so req.ip resolves the real client IP
+  // behind Replit's reverse proxy (mTLS termination layer)
+  app.set("trust proxy", 1);
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
@@ -266,6 +301,14 @@ function setupErrorHandler(app: express.Application) {
   const server = await registerRoutes(app);
 
   setupErrorHandler(app);
+
+  await storage.purgeExpiredSessions();
+  setInterval(() => { void storage.purgeExpiredSessions(); }, 6 * 60 * 60 * 1000);
+
+  const PRESENCE_TIMEOUT_MS = 90_000;
+  const PRESENCE_SWEEP_INTERVAL_MS = 60_000;
+  void storage.sweepStalePresence(PRESENCE_TIMEOUT_MS);
+  setInterval(() => { void storage.sweepStalePresence(PRESENCE_TIMEOUT_MS); }, PRESENCE_SWEEP_INTERVAL_MS);
 
   const port = parseInt(process.env.PORT || "5000", 10);
   server.listen(

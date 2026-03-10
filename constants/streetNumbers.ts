@@ -1,3 +1,5 @@
+import { STREET_INTERSECTIONS, IntersectionPoint as IntersectionCoord } from './intersections';
+
 export interface StreetNumberMarker {
   label: string;
   lat: number;
@@ -12,221 +14,6 @@ const LNG_TO_M = 111000 * Math.cos(-37.815 * Math.PI / 180);
 const SIDE_OFFSET_M = 14;
 const SIDE_OFFSET_LAT = SIDE_OFFSET_M / LAT_TO_M;
 const SIDE_OFFSET_LNG = SIDE_OFFSET_M / LNG_TO_M;
-
-interface IntersectionCoord {
-  name: string;
-  lat: number;
-  lng: number;
-}
-
-interface StreetIntersections {
-  name: string;
-  orientation: 'ns' | 'ew';
-  points: IntersectionCoord[];
-}
-
-const STREET_INTERSECTIONS: StreetIntersections[] = [
-  { name: 'Spencer Street', orientation: 'ns', points: [
-    { name: 'La Trobe Street', lat: -37.8131741, lng: 144.9514331 },
-    { name: 'Little Lonsdale Street', lat: -37.8141521, lng: 144.9519721 },
-    { name: 'Lonsdale Street', lat: -37.8151383, lng: 144.9523347 },
-    { name: 'Little Bourke Street', lat: -37.8161135, lng: 144.9528101 },
-    { name: 'Bourke Street', lat: -37.8171167, lng: 144.9532945 },
-    { name: 'Little Collins Street', lat: -37.8180351, lng: 144.9536954 },
-    { name: 'Collins Street', lat: -37.8190645, lng: 144.9541564 },
-    { name: 'Flinders Lane', lat: -37.8200746, lng: 144.9547177 },
-    { name: 'Flinders Street', lat: -37.8210771, lng: 144.9550637 },
-  ]},
-  { name: 'King Street', orientation: 'ns', points: [
-    { name: 'La Trobe Street', lat: -37.8124532, lng: 144.9539159 },
-    { name: 'Little Lonsdale Street', lat: -37.8134513, lng: 144.9543800 },
-    { name: 'Lonsdale Street', lat: -37.8144263, lng: 144.9548017 },
-    { name: 'Little Bourke Street', lat: -37.8154093, lng: 144.9552572 },
-    { name: 'Bourke Street', lat: -37.8163813, lng: 144.9557073 },
-    { name: 'Little Collins Street', lat: -37.8173730, lng: 144.9561702 },
-    { name: 'Collins Street', lat: -37.8183478, lng: 144.9566209 },
-    { name: 'Flinders Lane', lat: -37.8193907, lng: 144.9571057 },
-    { name: 'Flinders Street', lat: -37.8202612, lng: 144.9575086 },
-  ]},
-  { name: 'William Street', orientation: 'ns', points: [
-    { name: "A'Beckett Street", lat: -37.8106426, lng: 144.9560066 },
-    { name: 'La Trobe Street', lat: -37.8117295, lng: 144.9564160 },
-    { name: 'Little Lonsdale Street', lat: -37.8127354, lng: 144.9568802 },
-    { name: 'Lonsdale Street', lat: -37.8137003, lng: 144.9573246 },
-    { name: 'Little Bourke Street', lat: -37.8146840, lng: 144.9577773 },
-    { name: 'Bourke Street', lat: -37.8156703, lng: 144.9582171 },
-    { name: 'Little Collins Street', lat: -37.8166576, lng: 144.9586628 },
-    { name: 'Collins Street', lat: -37.8176274, lng: 144.9591082 },
-    { name: 'Flinders Lane', lat: -37.8186489, lng: 144.9595875 },
-    { name: 'Flinders Street', lat: -37.8195967, lng: 144.9600377 },
-  ]},
-  { name: 'Queen Street', orientation: 'ns', points: [
-    { name: "A'Beckett Street", lat: -37.8099531, lng: 144.9584124 },
-    { name: 'La Trobe Street', lat: -37.8110139, lng: 144.9588903 },
-    { name: 'Little Lonsdale Street', lat: -37.8120172, lng: 144.9593613 },
-    { name: 'Lonsdale Street', lat: -37.8129889, lng: 144.9597964 },
-    { name: 'Little Bourke Street', lat: -37.8139743, lng: 144.9602430 },
-    { name: 'Bourke Street', lat: -37.8149369, lng: 144.9606813 },
-    { name: 'Little Collins Street', lat: -37.8159444, lng: 144.9611504 },
-    { name: 'Collins Street', lat: -37.8169049, lng: 144.9615953 },
-    { name: 'Flinders Lane', lat: -37.8179089, lng: 144.9620592 },
-    { name: 'Flinders Street', lat: -37.8188999, lng: 144.9625059 },
-  ]},
-  { name: 'Elizabeth Street', orientation: 'ns', points: [
-    { name: "A'Beckett Street", lat: -37.8092364, lng: 144.9608622 },
-    { name: 'La Trobe Street', lat: -37.8103112, lng: 144.9613574 },
-    { name: 'Little Lonsdale Street', lat: -37.8113032, lng: 144.9618149 },
-    { name: 'Lonsdale Street', lat: -37.8122734, lng: 144.9622609 },
-    { name: 'Little Bourke Street', lat: -37.8132628, lng: 144.9627153 },
-    { name: 'Bourke Street', lat: -37.8142440, lng: 144.9631682 },
-    { name: 'Little Collins Street', lat: -37.8152319, lng: 144.9636245 },
-    { name: 'Collins Street', lat: -37.8161906, lng: 144.9640651 },
-    { name: 'Flinders Lane', lat: -37.8171925, lng: 144.9645186 },
-    { name: 'Flinders Street', lat: -37.8181091, lng: 144.9649631 },
-  ]},
-  { name: 'Swanston Street', orientation: 'ns', points: [
-    { name: "A'Beckett Street", lat: -37.8086716, lng: 144.9633388 },
-    { name: 'La Trobe Street', lat: -37.8095865, lng: 144.9638292 },
-    { name: 'Little Lonsdale Street', lat: -37.8105744, lng: 144.9642796 },
-    { name: 'Lonsdale Street', lat: -37.8115564, lng: 144.9647317 },
-    { name: 'Little Bourke Street', lat: -37.8125390, lng: 144.9651841 },
-    { name: 'Bourke Street', lat: -37.8135238, lng: 144.9656320 },
-    { name: 'Little Collins Street', lat: -37.8145043, lng: 144.9660841 },
-    { name: 'Collins Street', lat: -37.8154881, lng: 144.9665452 },
-    { name: 'Flinders Lane', lat: -37.8164700, lng: 144.9669901 },
-    { name: 'Flinders Street', lat: -37.8174614, lng: 144.9674447 },
-  ]},
-  { name: 'Russell Street', orientation: 'ns', points: [
-    { name: 'La Trobe Street', lat: -37.8088606, lng: 144.9663048 },
-    { name: 'Little Lonsdale Street', lat: -37.8098474, lng: 144.9667563 },
-    { name: 'Lonsdale Street', lat: -37.8108353, lng: 144.9672082 },
-    { name: 'Little Bourke Street', lat: -37.8118261, lng: 144.9676617 },
-    { name: 'Bourke Street', lat: -37.8127875, lng: 144.9681001 },
-    { name: 'Little Collins Street', lat: -37.8137853, lng: 144.9685579 },
-    { name: 'Collins Street', lat: -37.8147601, lng: 144.9690008 },
-    { name: 'Flinders Lane', lat: -37.8157426, lng: 144.9694579 },
-    { name: 'Flinders Street', lat: -37.8167308, lng: 144.9699358 },
-  ]},
-  { name: 'Exhibition Street', orientation: 'ns', points: [
-    { name: 'La Trobe Street', lat: -37.8081442, lng: 144.9687634 },
-    { name: 'Little Lonsdale Street', lat: -37.8091292, lng: 144.9692181 },
-    { name: 'Lonsdale Street', lat: -37.8101064, lng: 144.9696678 },
-    { name: 'Little Bourke Street', lat: -37.8111009, lng: 144.9701321 },
-    { name: 'Bourke Street', lat: -37.8120732, lng: 144.9705652 },
-    { name: 'Little Collins Street', lat: -37.8130661, lng: 144.9710212 },
-    { name: 'Collins Street', lat: -37.8140436, lng: 144.9714740 },
-    { name: 'Flinders Lane', lat: -37.8150221, lng: 144.9719285 },
-    { name: 'Flinders Street', lat: -37.8159903, lng: 144.9723944 },
-  ]},
-  { name: 'Spring Street', orientation: 'ns', points: [
-    { name: 'Little Lonsdale Street', lat: -37.8084183, lng: 144.9716133 },
-    { name: 'Lonsdale Street', lat: -37.8093773, lng: 144.9721432 },
-    { name: 'Little Bourke Street', lat: -37.8103791, lng: 144.9725428 },
-    { name: 'Bourke Street', lat: -37.8113301, lng: 144.9730360 },
-    { name: 'Little Collins Street', lat: -37.8123197, lng: 144.9735036 },
-    { name: 'Collins Street', lat: -37.8132325, lng: 144.9739123 },
-    { name: 'Flinders Lane', lat: -37.8143103, lng: 144.9743508 },
-    { name: 'Flinders Street', lat: -37.8152758, lng: 144.9749019 },
-  ]},
-  { name: 'La Trobe Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8131741, lng: 144.9514331 },
-    { name: 'King Street', lat: -37.8124532, lng: 144.9539159 },
-    { name: 'William Street', lat: -37.8117295, lng: 144.9564160 },
-    { name: 'Queen Street', lat: -37.8110139, lng: 144.9588903 },
-    { name: 'Elizabeth Street', lat: -37.8103112, lng: 144.9613574 },
-    { name: 'Swanston Street', lat: -37.8095865, lng: 144.9638292 },
-    { name: 'Russell Street', lat: -37.8088606, lng: 144.9663048 },
-    { name: 'Exhibition Street', lat: -37.8081442, lng: 144.9687634 },
-  ]},
-  { name: 'Little Lonsdale Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8141521, lng: 144.9519721 },
-    { name: 'King Street', lat: -37.8134513, lng: 144.9543800 },
-    { name: 'William Street', lat: -37.8127354, lng: 144.9568802 },
-    { name: 'Queen Street', lat: -37.8120172, lng: 144.9593613 },
-    { name: 'Elizabeth Street', lat: -37.8113032, lng: 144.9618149 },
-    { name: 'Swanston Street', lat: -37.8105744, lng: 144.9642796 },
-    { name: 'Russell Street', lat: -37.8098474, lng: 144.9667563 },
-    { name: 'Exhibition Street', lat: -37.8091292, lng: 144.9692181 },
-    { name: 'Spring Street', lat: -37.8084183, lng: 144.9716133 },
-  ]},
-  { name: 'Lonsdale Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8151383, lng: 144.9523347 },
-    { name: 'King Street', lat: -37.8144263, lng: 144.9548017 },
-    { name: 'William Street', lat: -37.8137003, lng: 144.9573246 },
-    { name: 'Queen Street', lat: -37.8129889, lng: 144.9597964 },
-    { name: 'Elizabeth Street', lat: -37.8122734, lng: 144.9622609 },
-    { name: 'Swanston Street', lat: -37.8115564, lng: 144.9647317 },
-    { name: 'Russell Street', lat: -37.8108353, lng: 144.9672082 },
-    { name: 'Exhibition Street', lat: -37.8101064, lng: 144.9696678 },
-    { name: 'Spring Street', lat: -37.8093773, lng: 144.9721432 },
-  ]},
-  { name: 'Little Bourke Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8161135, lng: 144.9528101 },
-    { name: 'King Street', lat: -37.8154093, lng: 144.9552572 },
-    { name: 'William Street', lat: -37.8146840, lng: 144.9577773 },
-    { name: 'Queen Street', lat: -37.8139743, lng: 144.9602430 },
-    { name: 'Elizabeth Street', lat: -37.8132628, lng: 144.9627153 },
-    { name: 'Swanston Street', lat: -37.8125390, lng: 144.9651841 },
-    { name: 'Russell Street', lat: -37.8118261, lng: 144.9676617 },
-    { name: 'Exhibition Street', lat: -37.8111009, lng: 144.9701321 },
-    { name: 'Spring Street', lat: -37.8103791, lng: 144.9725428 },
-  ]},
-  { name: 'Bourke Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8171167, lng: 144.9532945 },
-    { name: 'King Street', lat: -37.8163813, lng: 144.9557073 },
-    { name: 'William Street', lat: -37.8156703, lng: 144.9582171 },
-    { name: 'Queen Street', lat: -37.8149369, lng: 144.9606813 },
-    { name: 'Elizabeth Street', lat: -37.8142440, lng: 144.9631682 },
-    { name: 'Swanston Street', lat: -37.8135238, lng: 144.9656320 },
-    { name: 'Russell Street', lat: -37.8127875, lng: 144.9681001 },
-    { name: 'Exhibition Street', lat: -37.8120732, lng: 144.9705652 },
-    { name: 'Spring Street', lat: -37.8113301, lng: 144.9730360 },
-  ]},
-  { name: 'Little Collins Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8180351, lng: 144.9536954 },
-    { name: 'King Street', lat: -37.8173730, lng: 144.9561702 },
-    { name: 'William Street', lat: -37.8166576, lng: 144.9586628 },
-    { name: 'Queen Street', lat: -37.8159444, lng: 144.9611504 },
-    { name: 'Elizabeth Street', lat: -37.8152319, lng: 144.9636245 },
-    { name: 'Swanston Street', lat: -37.8145043, lng: 144.9660841 },
-    { name: 'Russell Street', lat: -37.8137853, lng: 144.9685579 },
-    { name: 'Exhibition Street', lat: -37.8130661, lng: 144.9710212 },
-    { name: 'Spring Street', lat: -37.8123197, lng: 144.9735036 },
-  ]},
-  { name: 'Collins Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8190645, lng: 144.9541564 },
-    { name: 'King Street', lat: -37.8183478, lng: 144.9566209 },
-    { name: 'William Street', lat: -37.8176274, lng: 144.9591082 },
-    { name: 'Queen Street', lat: -37.8169049, lng: 144.9615953 },
-    { name: 'Elizabeth Street', lat: -37.8161906, lng: 144.9640651 },
-    { name: 'Swanston Street', lat: -37.8154881, lng: 144.9665452 },
-    { name: 'Russell Street', lat: -37.8147601, lng: 144.9690008 },
-    { name: 'Exhibition Street', lat: -37.8140436, lng: 144.9714740 },
-    { name: 'Spring Street', lat: -37.8132325, lng: 144.9739123 },
-  ]},
-  { name: 'Flinders Lane', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8200746, lng: 144.9547177 },
-    { name: 'King Street', lat: -37.8193907, lng: 144.9571057 },
-    { name: 'William Street', lat: -37.8186489, lng: 144.9595875 },
-    { name: 'Queen Street', lat: -37.8179089, lng: 144.9620592 },
-    { name: 'Elizabeth Street', lat: -37.8171925, lng: 144.9645186 },
-    { name: 'Swanston Street', lat: -37.8164700, lng: 144.9669901 },
-    { name: 'Russell Street', lat: -37.8157426, lng: 144.9694579 },
-    { name: 'Exhibition Street', lat: -37.8150221, lng: 144.9719285 },
-    { name: 'Spring Street', lat: -37.8143103, lng: 144.9743508 },
-  ]},
-  { name: 'Flinders Street', orientation: 'ew', points: [
-    { name: 'Spencer Street', lat: -37.8210771, lng: 144.9550637 },
-    { name: 'King Street', lat: -37.8202612, lng: 144.9575086 },
-    { name: 'William Street', lat: -37.8195967, lng: 144.9600377 },
-    { name: 'Queen Street', lat: -37.8188999, lng: 144.9625059 },
-    { name: 'Elizabeth Street', lat: -37.8181091, lng: 144.9649631 },
-    { name: 'Swanston Street', lat: -37.8174614, lng: 144.9674447 },
-    { name: 'Russell Street', lat: -37.8167308, lng: 144.9699358 },
-    { name: 'Exhibition Street', lat: -37.8159903, lng: 144.9723944 },
-    { name: 'Spring Street', lat: -37.8152758, lng: 144.9749019 },
-  ]},
-];
 
 interface StreetBlock {
   street: string;
@@ -547,3 +334,65 @@ const STREET_BLOCKS: StreetBlock[] = [
   { street: "Flinders Street", from: "Spencer Street", to: "Wurundjeri Way", northSide: [600,602,604,606,608,610,612,614,616,618,620,622,624,626,628,630,632,634,636,638,640,642,644,646,648,650,652,654,656,658,660,662,664,666], southSide: [595,597,599,601,603,605,607,609,611,613,615,617,619,621,623,625,627,629,631,633,635,637,639,641,643,645,647,649,651,653,655,657,659,661,663,665,667,669,671,673,675,677,679,681,683,685,687,689,691,693,695,697,699,701] },
   { street: "Flinders Street", from: "Unknown", to: "Unknown", northSide: [399], southSide: [401] },
 ];
+
+export interface StreetAddressOption {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
+let _addressOptions: StreetAddressOption[] | null = null;
+
+export function getAllAddressOptions(): StreetAddressOption[] {
+  if (_addressOptions) return _addressOptions;
+  const options: StreetAddressOption[] = [];
+
+  for (const block of STREET_BLOCKS) {
+    const ptFrom = findIntersectionPoint(block.street, block.from);
+    const ptTo = findIntersectionPoint(block.street, block.to);
+    if (!ptFrom || !ptTo) continue;
+
+    const street = STREET_INTERSECTIONS.find(
+      s => normalizeStreetName(s.name) === normalizeStreetName(block.street),
+    );
+    if (!street) continue;
+
+    const sides: { key: 'northSide' | 'southSide' | 'eastSide' | 'westSide'; latOff: number; lngOff: number }[] =
+      street.orientation === 'ew'
+        ? [
+            { key: 'northSide', latOff: SIDE_OFFSET_LAT, lngOff: 0 },
+            { key: 'southSide', latOff: -SIDE_OFFSET_LAT, lngOff: 0 },
+          ]
+        : [
+            { key: 'eastSide', latOff: 0, lngOff: SIDE_OFFSET_LNG },
+            { key: 'westSide', latOff: 0, lngOff: -SIDE_OFFSET_LNG },
+          ];
+
+    for (const { key, latOff, lngOff } of sides) {
+      const nums = block[key];
+      if (!nums || nums.length === 0) continue;
+
+      const lo = nums[0];
+      const hi = nums[nums.length - 1];
+      const range = hi - lo;
+
+      for (const num of nums) {
+        const t = range > 0 ? (num - lo) / range : 0.5;
+        const frac = 0.08 + t * 0.84;
+        const lat = ptFrom.lat + (ptTo.lat - ptFrom.lat) * frac + latOff;
+        const lng = ptFrom.lng + (ptTo.lng - ptFrom.lng) * frac + lngOff;
+        const label = `${num} ${block.street}`;
+        options.push({
+          id: `addr-${label}-${lat.toFixed(5)}`,
+          label,
+          lat,
+          lng,
+        });
+      }
+    }
+  }
+
+  _addressOptions = options;
+  return options;
+}
