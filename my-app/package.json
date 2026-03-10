@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "doctor": "expo-doctor",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run doctor"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run doctor",
+    "release:preflight": "node scripts/release-preflight.mjs"
   },
   "dependencies": {
     "expo": "~55.0.0",

@@ -35,6 +35,9 @@ npm run dev
 npm run check
 ```
 
+## Release Planning
+See `docs/release-work-plan.md` for the deployment plan, platform recommendation, phased rollout, and second-pass readiness audit.
+
 ## Legacy Notes
 The remaining sections below describe the original app behavior and domain context, which should be used for parity/reference during migration.
 
