@@ -1,5 +1,46 @@
 # Patrol Zones — Melbourne CBD
 
+> **Build Type Update (2026):** This repository now contains a **clean-room Expo SDK 55 + EAS development-build target** under `my-app/`. The original root Expo/Replit app remains as legacy behavioral reference only and is not the intended runtime for new development.
+
+## Current Intention
+- Treat root app code as source-reference behavior only.
+- Build and run the new mobile app from `my-app/` using Expo Router + EAS dev client.
+- Keep backend concerns separated in `my-app/server/` with shared contracts in `my-app/shared/`.
+- Avoid Replit-domain runtime coupling and Expo proxy host assumptions in all new work.
+
+## New Clean-Room Build Targets (`my-app/`)
+
+### Mobile
+- Expo SDK 55 + Expo Router
+- EAS development build workflow (`expo start --dev-client`)
+- Environment-driven API config (`EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_ENVIRONMENT`)
+
+### Server
+- Express 5 service in `my-app/server/`
+- Independent scripts for lint/typecheck/test/check
+
+### Primary Commands
+```bash
+cd my-app
+npm run dev
+npm run lint
+npm run typecheck
+npm run test
+npm run doctor
+```
+
+```bash
+cd my-app/server
+npm run dev
+npm run check
+```
+
+## Release Planning
+See `docs/release-work-plan.md` for the deployment plan, platform recommendation, phased rollout, and second-pass readiness audit.
+
+## Legacy Notes
+The remaining sections below describe the original app behavior and domain context, which should be used for parity/reference during migration.
+
 ## Project Overview
 A mobile-first React Native (Expo) app for Melbourne City Council patrol officers. Provides real-time GPS location on a Melbourne CBD patrol zone map, a live magnetic compass, and daily zone assignment management.
 
