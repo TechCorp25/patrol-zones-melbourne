@@ -14,7 +14,9 @@
     "start": "npx expo start",
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
-    "test": "node scripts/test-smoke.mjs"
+    "test": "node scripts/test-smoke.mjs",
+    "mongo:migrate:dry": "tsx scripts/mongodb/migrate-sqlite-to-mongo.ts --source postgres --dry-run",
+    "mongo:migrate": "tsx scripts/mongodb/migrate-sqlite-to-mongo.ts --source postgres --out scripts/mongodb/out"
   },
   "dependencies": {
     "@expo-google-fonts/roboto-mono": "^0.4.1",
