@@ -1,0 +1,45 @@
+{
+  "name": "patrol-zones-melbourne-cleanroom",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start --dev-client",
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "doctor": "expo-doctor",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run doctor",
+    "release:preflight": "node scripts/release-preflight.mjs"
+  },
+  "dependencies": {
+    "expo": "~55.0.0",
+    "expo-dev-client": "~6.0.0",
+    "expo-router": "~7.0.0",
+    "expo-location": "~20.0.0",
+    "expo-haptics": "~16.0.0",
+    "expo-secure-store": "~16.0.0",
+    "expo-font": "~15.0.0",
+    "expo-splash-screen": "~32.0.0",
+    "expo-system-ui": "~7.0.0",
+    "react": "19.1.1",
+    "react-native": "0.82.0",
+    "react-native-maps": "1.21.0",
+    "react-native-reanimated": "~4.2.0",
+    "react-native-gesture-handler": "~2.29.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.17.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@tanstack/react-query": "^5.90.7",
+    "zod": "^3.25.76",
+    "express": "^5.1.0",
+    "drizzle-orm": "^0.44.5",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "eslint": "^9.39.1",
+    "eslint-config-expo": "~11.0.0",
+    "vitest": "^3.2.4"
+  }
+}
