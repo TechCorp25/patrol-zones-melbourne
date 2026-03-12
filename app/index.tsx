@@ -78,6 +78,20 @@ const MAP_TYPE_ICONS: ("map-outline" | "sunny-outline" | "earth-outline" | "laye
     ? ["map-outline", "sunny-outline", "earth-outline", "layers-outline"]
     : ["map-outline", "earth-outline", "layers-outline"];
 
+function normaliseCode21Request(raw: Code21Request): Code21Request | null {
+  const latitude = Number(raw.latitude);
+  const longitude = Number(raw.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    ...raw,
+    latitude,
+    longitude,
+  };
+}
+
 function getLocalDateString(): string {
   const now = new Date();
   return [
@@ -700,7 +714,10 @@ export default function PatrolMapScreen() {
       });
       if (response.ok) {
         const data = await response.json() as { requests: Code21Request[] };
-        setArchiveResults(data.requests);
+        const validRequests = data.requests
+          .map((request) => normaliseCode21Request(request))
+          .filter((request): request is Code21Request => request !== null);
+        setArchiveResults(validRequests);
       }
     } catch {
       // Fail silently
@@ -993,7 +1010,10 @@ export default function PatrolMapScreen() {
       });
       const body = await response.json();
       if (response.ok && Array.isArray(body.requests)) {
-        setCode21Requests(body.requests);
+        const validRequests = body.requests
+          .map((request: Code21Request) => normaliseCode21Request(request))
+          .filter((request: Code21Request | null): request is Code21Request => request !== null);
+        setCode21Requests(validRequests);
       }
     } catch {
       // ignore offline bootstrap errors
