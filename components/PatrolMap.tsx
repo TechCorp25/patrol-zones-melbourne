@@ -41,6 +41,8 @@ export interface PatrolMapProps {
 }
 
 const LIGHT_BASED_MAP_TYPES = new Set(["standard", "satellite", "hybrid"]);
+const IOS_MAP_TYPES = new Set(["mutedStandard", "standard", "satellite", "hybrid"]);
+const ANDROID_MAP_TYPES = new Set(["standard", "satellite", "hybrid"]);
 
 function saturateHexColor(hex: string, boost: number) {
   const normalizedHex = hex.replace("#", "");
@@ -247,7 +249,10 @@ const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
   { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady, routePolyline, routeMode },
   ref,
 ) {
-    const resolvedMapType = (mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard")) as any;
+    const requestedMapType = mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard");
+    const resolvedMapType = (Platform.OS === "ios"
+      ? (IOS_MAP_TYPES.has(requestedMapType) ? requestedMapType : "mutedStandard")
+      : (ANDROID_MAP_TYPES.has(requestedMapType) ? requestedMapType : "standard")) as any;
     const isLightMap = LIGHT_BASED_MAP_TYPES.has(resolvedMapType);
     const isDarkStyle = !isLightMap;
     const roundedHeading = useMemo(() => Math.round(heading), [heading]);
@@ -277,7 +282,7 @@ const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
         style={StyleSheet.absoluteFill}
         initialRegion={MELBOURNE_CBD_REGION}
         mapType={resolvedMapType}
-        userInterfaceStyle={isDarkStyle ? "dark" : "light"}
+        {...(Platform.OS === "ios" ? { userInterfaceStyle: isDarkStyle ? "dark" : "light" as const } : {})}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
