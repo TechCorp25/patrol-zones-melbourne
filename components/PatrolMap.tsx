@@ -1,6 +1,7 @@
 import React, { forwardRef, memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from "react-native";
 import type { Region } from "react-native-maps";
+import Constants from "expo-constants";
 import { PATROL_ZONES, MELBOURNE_CBD_REGION } from "@/constants/zones";
 import { getAllStreetNumberMarkers } from "@/constants/streetNumbers";
 import Colors from "@/constants/colors";
@@ -249,6 +250,11 @@ const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
   { location, heading, currentZoneId, assignedZoneId, destinations = [], onDestinationPress, onDestinationLongPress, previewPin, mapType, onMapReady, routePolyline, routeMode },
   ref,
 ) {
+    const isExpoGoRuntime = useMemo(() => {
+      const executionEnvironment = (Constants as { executionEnvironment?: string }).executionEnvironment;
+      const appOwnership = (Constants as { appOwnership?: string }).appOwnership;
+      return executionEnvironment === "storeClient" || appOwnership === "expo";
+    }, []);
     const requestedMapType = mapType ?? (Platform.OS === "ios" ? "mutedStandard" : "standard");
     const resolvedMapType = (Platform.OS === "ios"
       ? (IOS_MAP_TYPES.has(requestedMapType) ? requestedMapType : "mutedStandard")
@@ -265,12 +271,14 @@ const PatrolMap = forwardRef<any, PatrolMapProps>(function PatrolMapInner(
       );
     }, []);
 
-    if (!MapView || !Polygon || !Marker || !Circle || !Polyline) {
+    if (isExpoGoRuntime || !MapView || !Polygon || !Marker || !Circle || !Polyline) {
       return (
         <View style={styles.fallbackRoot}>
           <Text style={styles.fallbackTitle}>Map unavailable</Text>
           <Text style={styles.fallbackText}>
-            react-native-maps is not available in this runtime path.
+            {isExpoGoRuntime
+              ? "Expo Go does not support this map path. Please use a development build for full map support."
+              : "react-native-maps is not available in this runtime path."}
           </Text>
         </View>
       );
