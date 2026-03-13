@@ -9,7 +9,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "doctor": "expo-doctor",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run doctor"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run doctor",
+    "eas:configure": "eas build:configure",
+    "build:android:development": "eas build --platform android --profile development",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production",
+    "build:list": "eas build:list"
   },
   "dependencies": {
     "expo": "~55.0.0",

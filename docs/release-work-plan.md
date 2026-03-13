@@ -19,7 +19,7 @@
   - `ROUTING_PROVIDER`
   - `ROUTING_BASE_URL` (or provider credentials)
   - `ELEVATION_PROVIDER`
-- Replace placeholder EAS project id in `my-app/app.config.ts`.
+- Set `EXPO_PUBLIC_EAS_PROJECT_ID` (or `EAS_PROJECT_ID`) to your Expo project UUID.
 - Run `cd my-app && npm run release:preflight`.
 
 ### Phase 1 — Validation gate
@@ -31,9 +31,9 @@
   - auth/code21/sections/presence/route/elevation endpoints
 
 ### Phase 2 — Build and internal rollout
-- Configure EAS project once: `cd my-app && npx eas build:configure`
-- Android dev build: `cd my-app && npx eas build --profile development --platform android`
-- Android preview build: `cd my-app && npx eas build --profile preview --platform android`
+- Configure EAS project once: `cd my-app && npm run eas:configure`
+- Android dev build: `cd my-app && npm run build:android:development`
+- Android preview build: `cd my-app && npm run build:android:preview`
 - Internal UAT checklist:
   - Login/register
   - Live GPS + zone detection
@@ -43,7 +43,7 @@
   - Route metrics and board/presence flows
 
 ### Phase 3 — Production promotion
-- Android production: `cd my-app && npx eas build --profile production --platform android`
+- Android production: `cd my-app && npm run build:android:production`
 - iOS production (after parity): `cd my-app && npx eas build --profile production --platform ios`
 - Publish OTA-safe updates only after native compatibility check:
   - `cd my-app && npx eas update --branch production --message "release: <version>"`
@@ -56,13 +56,13 @@
 - README now identifies legacy root as reference behavior and `my-app/` as active target.
 
 ### Remaining deployment blockers to resolve before release
-1. `my-app/app.config.ts` still has placeholder EAS project id.
+1. `EXPO_PUBLIC_EAS_PROJECT_ID` must be populated in local shells/CI/EAS secrets before running cloud builds.
 2. `my-app` test runner availability is environment-sensitive (`vitest` binary unavailable in current shell snapshot).
 3. Backend endpoints are scaffolded but still lightweight placeholders and require production storage/auth hardening.
 4. Data files are sample fixtures and must be replaced with full authoritative datasets for behavior parity.
 
 ## Operational handoff checklist
-- [ ] EAS project id replaced
+- [ ] `EXPO_PUBLIC_EAS_PROJECT_ID` configured in local env and EAS secrets
 - [ ] Mobile/server env vars configured in CI and EAS secrets
 - [ ] `npm run check` passing for mobile and server
 - [ ] Android internal pilot signed off by patrol operations

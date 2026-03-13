@@ -1,5 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
+const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? process.env.EAS_PROJECT_ID;
+
 export default (): ExpoConfig => ({
   name: 'Patrol Zones Melbourne',
   slug: 'patrol-zones-melbourne',
@@ -23,7 +25,7 @@ export default (): ExpoConfig => ({
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
     environment: process.env.EXPO_PUBLIC_ENVIRONMENT,
     eas: {
-      projectId: 'replace-with-real-project-id'
+      projectId: easProjectId
     }
   }
 });
