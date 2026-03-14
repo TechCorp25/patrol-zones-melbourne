@@ -20,7 +20,15 @@ export default (): ExpoConfig => ({
     package: 'au.melbourne.patrolzones',
     permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']
   },
-  plugins: ['expo-router'],
+  plugins: [
+    'expo-router',
+    [
+      'react-native-maps',
+      {
+        androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY
+      }
+    ]
+  ],
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
     environment: process.env.EXPO_PUBLIC_ENVIRONMENT,
